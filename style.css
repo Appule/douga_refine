@@ -1,0 +1,373 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  height: 100%;
+  overflow: hidden; /* リサイズ中のスクロールバーを防ぐ */
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.menu-header h3,
+.color-header h3 {
+  margin: 6px;
+  font-size: 24px;
+  line-height: 1.0;
+  font-weight: 600;
+}
+
+/* 上部コンテナ */
+.top-container {
+  display: flex;
+  flex-grow: 1; /* 残りの高さをすべて占める */
+  height: 80%; /* デフォルトの高さ */
+}
+
+/* 編集画面パネル */
+.main-editor-panel {
+  background-color: #f0f0f0;
+  flex-grow: 1; /* 残りの幅を占める */
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.main-editor-panel.dragover {
+  border-color: #333;
+  background: #eee;
+}
+
+.main-editor-panel {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.editor-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* フレームメニューパネル */
+.frame-menu-panel {
+  background-color: rgb(224, 224, 224);
+  width: 20%; /* デフォルトの幅 */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* 縦スクロール可 */
+  border-left: 1px solid #ccc;
+}
+
+.menu-header, .color-header {
+  padding: 2px;
+  background-color: #d6d6d6;
+  flex-shrink: 0;
+  /* 横方向に並べる */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.menu-content {
+  padding: 10px;
+}
+
+.button-row {
+  display: flex;
+  margin-bottom: 0px;
+}
+
+.frame-btn {
+  flex: 0 0 70%;
+  height: 40px;
+  font-size: 14px;
+  padding: 5px;
+  margin: 0px 0;
+  border: 1px solid #ccc;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.config-btn {
+  flex: 0 0 30%;
+  height: 40px;
+  font-size: 14px;
+  padding: 5px;
+  margin: 0px 0;
+  border: 1px solid #ccc;
+  color: #fff;
+  background-color: rgb(230, 129, 71);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.frame-item:hover {
+  background: #ddd;
+}
+
+/* カラー編集パネル */
+.color-editor-panel {
+  background-color: #c0c0c0;
+  height: 20%; /* デフォルトの高さ */
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  border-top: 1px solid #ccc;
+}
+
+#cfg-drop-zone {
+  transition: background-color 0.1s, border-color 0.1s;
+}
+
+/* ドラッグオーバー時のハイライト */
+#cfg-drop-zone.dragover {
+  background-color: #eef;
+  border-color: #66a;
+}
+
+.color-content {
+  display: flex;
+  padding: 10px;
+  overflow-x: auto; /* 横スクロール可 */
+}
+
+.color-block {
+  flex-shrink: 0;
+  width: 365px;
+  height: 120px;
+  background-color: #fff;
+  margin-right: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.color-picker {
+  width: 80px;
+  height: 80px;
+  border: 1px solid #ccc;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.color-control-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  width: 100%;
+}
+
+.sliders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.slider-label, .slider-value {
+  width: 50px; /* 幅を固定して位置を揃える */
+  text-align: left;
+  font-size: 14px;
+}
+
+.color-slider {
+  width: 120px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e0e0e0;
+  outline: none;
+  opacity: 0.7;
+  transition: opacity .2s;
+}
+
+.color-slider:hover {
+  opacity: 1;
+}
+
+.color-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  background: #007bff;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.color-slider::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  background: #007bff;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+/* ツールチップのスタイル */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  width: 160px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 8px;
+  border-radius: 4px;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.2s;
+  pointer-events: none;
+  white-space: normal;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* リサイザーのスタイル */
+.resizer-v {
+  width: 5px;
+  cursor: col-resize;
+  background-color: #bbb;
+}
+
+.resizer-h {
+  height: 5px;
+  cursor: row-resize;
+  background-color: #bbb;
+}
+
+/* info message */
+.error {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.success {
+  color: #27ae60;
+  background: rgba(39, 174, 96, 0.1);
+  padding: 15px;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+#status{
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+}
+
+.spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.param-window {
+  position: absolute;
+  width: 200px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid #aaa;
+  padding: 10px;
+  box-shadow: 2px 2px 8px rgba(255, 255, 255, 0.3);
+  display: none;
+  overflow: hidden;
+  resize: none;
+  z-index: 1;
+}
+
+.param-window .scroll-container {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+#toggleButton {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  padding: 10px 15px;
+  z-index: 99999;
+
+  background: #009ddb;
+}
+
+button:hover {
+  filter: brightness(1.2);
+}
+
+button.active {
+  filter: brightness(0.8);
+}
+
+button.accent {
+  font-weight: bolder;
+  filter: brightness(1.3);
+}
+
+#canvas {
+  height: 100%;
+}
+
+#previewCanvas {
+  border: 1px solid #666;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* 点滅アニメーション */
+@keyframes blink {
+  0%   { filter: brightness(0.9); }
+  50%  { filter: brightness(1.3); }
+  100% { filter: brightness(0.9); }
+}
+
+/* クラス付与で点滅開始 */
+button.blink {
+  animation: blink 1.5s steps(1, start) infinite; /* 1秒周期で繰り返し */
+}
+
+@keyframes blink-bg {
+  0%   { filter: brightness(1.0); }
+  50%  { filter: brightness(0.9); }
+  100% { filter: brightness(1.0); }
+}
+
+input.blink {
+  animation: blink-bg 2.0s steps(1, start) infinite;
+}
