@@ -1422,62 +1422,6 @@ function makeUniformsCodes(paramsSize){
   `;
 }
 
-const sharpnessShaderCode = /* glsl */`
-  @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-  @group(0) @binding(1) var<storage, read> imageIn: array<f32>;
-  @group(0) @binding(2) var<storage, read_write> imageOut: array<f32>;
-
-  const gaussKernel: array<array<f32, 3>, 3> = array(
-    array<f32, 3>(1.0, 2.0, 1.0),
-    array<f32, 3>(2.0, 4.0, 2.0),
-    array<f32, 3>(1.0, 2.0, 1.0)
-  );
-  const ksz = 1;
-
-  // const gaussKernel: array<array<f32, 5>, 5> = array(
-  //   array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0),
-  //   array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
-  //   array<f32, 5>(6.0, 24.0, 36.0, 24.0, 6.0),
-  //   array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
-  //   array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0)
-  // );
-  // const ksz = 2;
-
-  @compute @workgroup_size(8, 8)
-  fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let width = uniforms.width;
-    let height = uniforms.height;
-
-    if (global_id.x >= width || global_id.y >= height) { return; }
-
-    let x = i32(global_id.x);
-    let y = i32(global_id.y);
-    let w = i32(width);
-    let h = i32(height);
-    let index = y * w + x;
-
-    var sum: f32 = 0.0;
-    var weightSum: f32 = 0.0;
-
-    for (var dy = -ksz; dy <= ksz; dy++) {
-      for (var dx = -ksz; dx <= ksz; dx++) {
-        let sx = clamp(x + dx, 0, w - 1);
-        let sy = clamp(y + dy, 0, h - 1);
-        let sampleIndex = sy * w + sx;
-
-        let value = imageIn[u32(sampleIndex)];
-        let weight = gaussKernel[(dy + ksz)][(dx + ksz)];
-
-        sum += value * weight;
-        weightSum += weight;
-      }
-    }
-
-    let blurred = clamp(sum / weightSum, 0.0, 1.0);
-    imageOut[u32(index)] = blurred;
-  }
-`;
-
 const tracePressShaderCode = /* glsl */`
   @group(0) @binding(0) var<uniform> uniforms: Uniforms;
   @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
@@ -1701,6 +1645,62 @@ const tracePressShaderCode = /* glsl */`
 
   fn rgb2xyz(rgb: vec3f) -> vec3f {
     return hsl2xyz(rgb2hsl(rgb));
+  }
+`;
+
+const sharpnessShaderCode = /* glsl */`
+  @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+  @group(0) @binding(1) var<storage, read> imageIn: array<f32>;
+  @group(0) @binding(2) var<storage, read_write> imageOut: array<f32>;
+
+  const gaussKernel: array<array<f32, 3>, 3> = array(
+    array<f32, 3>(-0.2, -0.2, -0.2),
+    array<f32, 3>(-0.2,  2.8, -0.2),
+    array<f32, 3>(-0.2, -0.2, -0.2)
+  );
+  const ksz = 1;
+
+  // const gaussKernel: array<array<f32, 5>, 5> = array(
+  //   array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0),
+  //   array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
+  //   array<f32, 5>(6.0, 24.0, 36.0, 24.0, 6.0),
+  //   array<f32, 5>(4.0, 16.0, 24.0, 16.0, 4.0),
+  //   array<f32, 5>(1.0, 4.0, 6.0, 4.0, 1.0)
+  // );
+  // const ksz = 2;
+
+  @compute @workgroup_size(8, 8)
+  fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let width = uniforms.width;
+    let height = uniforms.height;
+
+    if (global_id.x >= width || global_id.y >= height) { return; }
+
+    let x = i32(global_id.x);
+    let y = i32(global_id.y);
+    let w = i32(width);
+    let h = i32(height);
+    let index = y * w + x;
+
+    var sum: f32 = 0.0;
+    var weightSum: f32 = 0.0;
+
+    for (var dy = -ksz; dy <= ksz; dy++) {
+      for (var dx = -ksz; dx <= ksz; dx++) {
+        let sx = clamp(x + dx, 0, w - 1);
+        let sy = clamp(y + dy, 0, h - 1);
+        let sampleIndex = sy * w + sx;
+
+        let value = imageIn[u32(sampleIndex)];
+        let weight = gaussKernel[(dy + ksz)][(dx + ksz)];
+
+        sum += value * weight;
+        weightSum += weight;
+      }
+    }
+
+    let blurred = clamp(sum / weightSum + 0.1, 0.0, 1.0);
+    imageOut[u32(index)] = blurred;
   }
 `;
 
@@ -2155,6 +2155,7 @@ function preparePipelines(imageData, gCfg, fCfg) {
     uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
     input: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
     // DEBUG: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
+    pSharp: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     pressure: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     pressureOut: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     binary: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
@@ -2217,9 +2218,18 @@ function preparePipelines(imageData, gCfg, fCfg) {
       bindings: [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'input', binding: 1, type: 'read-only-storage' },
-        { name: 'pressure', binding: 2, type: 'storage' },
+        { name: 'pSharp', binding: 2, type: 'storage' },
         { name: 'binary', binding: 3, type: 'storage' },
         // { name: 'DEBUG', binding: 4, type: 'storage' },
+      ]
+    },
+    { // 筆圧値：シャープネスフィルタ
+      name: 'Sharpness',
+      code: uniformsCode + sharpnessShaderCode,
+      bindings: [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'pSharp', binding: 1, type: 'read-only-storage' },
+        { name: 'pressure', binding: 2, type: 'storage' },
       ]
     },
     { // 筆圧値：Floatをグレーに変換
