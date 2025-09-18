@@ -1653,10 +1653,11 @@ const sharpnessShaderCode = /* glsl */`
   @group(0) @binding(1) var<storage, read> imageIn: array<f32>;
   @group(0) @binding(2) var<storage, read_write> imageOut: array<f32>;
 
+  const sp = 0.1;
   const gaussKernel: array<array<f32, 3>, 3> = array(
-    array<f32, 3>(-0.2, -0.2, -0.2),
-    array<f32, 3>(-0.2,  2.8, -0.2),
-    array<f32, 3>(-0.2, -0.2, -0.2)
+    array<f32, 3>(-sp, -sp, -sp),
+    array<f32, 3>(-sp, 1.0 + 8*sp, -sp),
+    array<f32, 3>(-sp, -sp, -sp)
   );
   const ksz = 1;
 
