@@ -53,6 +53,8 @@ body, html {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 }
 
@@ -87,7 +89,7 @@ body, html {
 }
 
 .frame-btn {
-  flex: 0 0 70%;
+  flex: 0 0 60%;
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -100,7 +102,7 @@ body, html {
 }
 
 .config-btn {
-  flex: 0 0 30%;
+  flex: 0 0 20%;
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -108,6 +110,20 @@ body, html {
   border: 1px solid #ccc;
   color: #fff;
   background-color: rgb(230, 129, 71);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.draw-btn {
+  flex: 0 0 20%;
+  height: 40px;
+  font-size: 14px;
+  padding: 5px;
+  margin: 0px 0;
+  border: 1px solid #ccc;
+  color: #fff;
+  background-color: rgb(172, 71, 230);
   border-radius: 4px;
   cursor: pointer;
   text-align: center;
@@ -341,6 +357,7 @@ button.accent {
 }
 
 #canvas {
+  position:absolute;
   height: 100%;
 }
 
@@ -348,6 +365,21 @@ button.accent {
   border: 1px solid #666;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+#drawCanvas {
+  position:absolute;
+  height: 100%;
+  z-index: 1;
+  mix-blend-mode: multiply;
+  background: rgb(255, 255, 255);
+}
+
+#overlayCanvas {
+  position:absolute;
+  height: 100%;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0);
 }
 
 /* 点滅アニメーション */

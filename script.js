@@ -20,6 +20,7 @@ class ParamsWindow {
    */
   constructor(id, backgroundColor = 'rgba(255, 255, 255, 0.52)') {
     this.windowIsClicked = false;
+    
     this.el = document.getElementById(id);
 
     this.container = document.createElement('div');
@@ -356,6 +357,7 @@ let frameIndex = 0;
 let frameCfgIndex = 0;
 let cfgToggleStates = []; // コンフィグボタンのトグル状態
 let cfgIsPressed = false;
+let drwToggleStates = []; // drawボタンのトグル状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
 let currentConfig = {bgColor: '#ffffff', colorBlocks: {}}; 
@@ -364,7 +366,11 @@ let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
 
 let uploadedImages = []; // アップロードした画像の保持
+let drawImages = []; // マーキング画像の保持
 let processedImages = { pressure: [], log: [], processed: [] }; // 処理後画像の保持
+
+let cursorMode = 'camera';
+const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' };
 
 function changeShowMode(mode) {
   showMode = mode;
@@ -375,6 +381,8 @@ windows[0].addButton('<i class="fa-regular fa-image"></i> 最終出力', () => c
 windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => changeShowMode('pressure'), true);
 windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => changeShowMode('log'), true);
 // windows[0].addButton("DEBUG", changeShowMode('DEBUG'), true);
+
+const cursorModeList = windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { cursorMode = modeList[e]; }, 'rgba(89, 98, 219, 1)');
 
 const allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', processAllImages, false, 'rgb(0, 153, 221)');
 
@@ -971,19 +979,41 @@ function applyCurrentConfig(){ // currentConfig を globalConfig/frameConfigs �
   }
 }
 
+function applyCurrentDrawing(){
+  const drw = dctx.getImageData(0, 0, canvas.width, canvas.height);
+  if(drwToggleStates.some(Boolean)){
+    for(let i = 0; i < drwToggleStates.length; ++i){
+      if(drwToggleStates[i]) {
+        drawImages[i] = drw;
+        frameBtns[i].dbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+      }
+    }
+  }
+}
+
 const menuContent = document.querySelector(".menu-content");
 const editorContent = document.querySelector(".editor-content");
-editorContent.innerHTML = '<canvas id="canvas"></canvas>';
+editorContent.innerHTML = `
+  <h1>編集画面</h1>
+  <p>ここに画像をドラッグ＆ドロップしてください</p>
+  <canvas id="canvas"></canvas>
+  <canvas id="drawCanvas"></canvas>
+  <canvas id="overlayCanvas"></canvas>
+`;
 const colorEditorTitle = document.getElementById("color-editor-title");
 // コンフィグのドロップゾーン
 const dropZone = document.getElementById("drop-zone");
-const canvas = editorContent.querySelector("canvas");
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const offscreenCanvas = document.createElement("canvas");
 const osctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 offscreenCanvas.style.position = 'absolute';
 offscreenCanvas.style.visibility = 'hidden';
 editorContent.appendChild(offscreenCanvas);
+const drawCanvas = document.getElementById("drawCanvas");
+const dctx = drawCanvas.getContext('2d', { willReadFrequently: true });
+const overlayCanvas = document.getElementById("overlayCanvas");
+const octx = overlayCanvas.getContext('2d');
 // ボタンとプレビュー用 canvas を取得
 const buttons = document.querySelectorAll('.preview-btn');
 const previewCanvas = document.getElementById('previewCanvas');
@@ -1006,6 +1036,7 @@ function updateFrmBtns(index){
     else b.fbtn.classList.remove('accent');
   });
 }
+
 function updateCfgBtns(){
   let noActive = true;
   frameBtns.forEach((b, i) => {
@@ -1027,6 +1058,28 @@ function updateCfgBtns(){
     updateColorBlocks(frameConfigs[frameCfgIndex]);
   }
 }
+
+function updateDrwBtns(){
+  let noActive = true;
+  frameBtns.forEach((b, i) => {
+    if (drwToggleStates[i]) {
+      b.dbtn.classList.add('accent');
+      noActive = false;
+    }
+    else {
+      b.dbtn.classList.remove('accent');
+    }
+  });
+  if (noActive) {
+    // 全drawボタンが非アクティブの時
+  }
+  if (drawImages[frameIndex]){
+    dctx.putImageData(drawImages[frameIndex], 0, 0);
+  } else {
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+  }
+}
+
 menuContent.addEventListener("contextmenu", (event) => {
   event.preventDefault();
 });
@@ -1080,8 +1133,10 @@ dropZone.addEventListener("drop", (e) => {
   frameBtns.length = 0;
   frameIndex = 0;
   cfgToggleStates.length = 0;
+  drwToggleStates.length = 0;
   frameConfigs.length = 0;
   uploadedImages = new Array(fileInfos.length);
+  drawImages = new Array(fileInfos.length);
   processedImages = { pressure: new Array(fileInfos.length), log: new Array(fileInfos.length), processed: new Array(fileInfos.length) };
   
   fileInfos.forEach((info, index) => {
@@ -1099,6 +1154,11 @@ dropZone.addEventListener("drop", (e) => {
       await showImage(index);
       // frameIndexのボタンを強調表示
       updateFrmBtns(index);
+      drwToggleStates.fill(false);
+      for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
+        drwToggleStates[i] = true;
+      }
+      updateDrwBtns();
     });
     fbtn.addEventListener("mouseenter", async () => {
       if(buttonIsPressed) {
@@ -1113,6 +1173,13 @@ dropZone.addEventListener("drop", (e) => {
             cfgToggleStates[i] = true;
           }
           updateCfgBtns();
+        }
+        if(buttonIsPressed){
+          drwToggleStates.fill(false);
+          for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
+            drwToggleStates[i] = true;
+          }
+          updateDrwBtns();
         }
       }
       // プレビュー
@@ -1134,6 +1201,48 @@ dropZone.addEventListener("drop", (e) => {
       previewCanvas.style.display = 'none';
     });
     row.appendChild(fbtn);
+
+    // drawingボタン 'rgba(230, 129, 71, 1)'
+    const dbtn = document.createElement("button");
+    drwToggleStates[index] = false;
+    dbtn.classList.add("draw-btn");
+    dbtn.innerHTML = '';
+    dbtn.addEventListener("mousedown", (event) => {
+      buttonIsPressed |= event.button == 0 ? 1 : 0;
+      dbtn.classList.add('active');
+      if(event.shiftKey) {
+        drwToggleStates.fill(false);
+        for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
+          drwToggleStates[i] = true;
+        }
+      }
+      else if(event.ctrlKey) {
+        drwToggleStates[index] = !drwToggleStates[index];
+        frameIndex = index;
+      }
+      else {
+        drwToggleStates.fill(false);
+        drwToggleStates[index] = true;
+        frameIndex = index;
+      }
+      updateDrwBtns();
+    });
+    dbtn.addEventListener("mouseenter", (event) => {
+      if(buttonIsPressed) {
+        if(!event.ctrlKey) drwToggleStates.fill(false);
+        for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
+          drwToggleStates[i] = true;
+        }
+        updateDrwBtns();
+      }
+    });
+    dbtn.addEventListener('mouseup', () => {
+      dbtn.classList.remove('active');
+    });
+    dbtn.addEventListener('mouseleave', () => {
+      dbtn.classList.remove('active');
+    });
+    row.appendChild(dbtn);
 
     // コンフィグボタン 'rgba(230, 129, 71, 1)'
     const cbtn = document.createElement("button");
@@ -1176,7 +1285,7 @@ dropZone.addEventListener("drop", (e) => {
       cbtn.classList.remove('active');
     });
     row.appendChild(cbtn);
-    frameBtns.push({fbtn:fbtn, cbtn:cbtn});
+    frameBtns.push({fbtn:fbtn, dbtn:dbtn, cbtn:cbtn});
     menuContent.appendChild(row);
 
     const ext = info.file.name.split('.').pop().toLowerCase();
@@ -1313,8 +1422,12 @@ async function loadTGA(file, index, fileNum) {
   // --- canvasに描画 ---
   canvas.width = width;
   canvas.height = height;
-  offscreenCanvas.width = canvas.width;
-  offscreenCanvas.height = canvas.height;
+  offscreenCanvas.width = width;
+  offscreenCanvas.height = height;
+  drawCanvas.width = width;
+  drawCanvas.height = height;
+  overlayCanvas.width = width;
+  overlayCanvas.height = height;
   ctx.putImageData(imageData, 0, 0);
 
   // --- キャッシュ ---
@@ -1332,21 +1445,30 @@ document.addEventListener('mousedown', (event) => {
     buttonIsPressed = true;
 });
 
-// カメラワーク
+// カメラワーク/範囲選択処理
 let zoom = 1;
 let offsetX = 0, offsetY = 0;
 let isDragging = false;
 let startX, startY;
 
-canvas.style.transformOrigin = "0 0"; // 左上基準にして計算しやすくする
+canvas.style.transformOrigin = "0 0"; // 左上基準
+drawCanvas.style.transformOrigin = "0 0";
+overlayCanvas.style.transformOrigin = "0 0";
+
+editorContent.addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
 
 // 左クリックでドラッグパン
 editorContent.addEventListener("mousedown", (e) => {
+  if (cursorMode !== 'camera') return;
   if (e.button === 1) { // 中ボタンでリセット
     offsetX = 0;
     offsetY = 0;
     zoom = 1;
     canvas.style.transform = `translate(0px, 0px) scale(1)`;
+    drawCanvas.style.transform = `translate(0px, 0px) scale(1)`;
+    overlayCanvas.style.transform = `translate(0px, 0px) scale(1)`;
     e.preventDefault();
     return;
   }
@@ -1358,13 +1480,104 @@ editorContent.addEventListener("mousedown", (e) => {
 });
 
 editorContent.addEventListener("mousemove", (e) => {
-  if (!isDragging) return;
+  if (cursorMode !== 'camera' || !isDragging) return;
   offsetX = e.clientX - startX;
   offsetY = e.clientY - startY;
   updateTransform();
 });
 
-editorContent.addEventListener("mouseup", () => isDragging = false);
+editorContent.addEventListener("mouseup", () => {
+  if (cursorMode !== 'camera') return;
+  isDragging = false;
+});
+
+// 範囲選択
+let isLassoing   = false;
+let lassoPoints  = [];   // {x,y}
+// 投げ縄開始
+editorContent.addEventListener('mousedown', e => {
+  if (cursorMode !== 'highTh' && cursorMode !== 'lowTh') return;
+
+  isLassoing  = true;
+  lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
+  
+  // overlay をクリアしてパスをリセット
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+});
+
+// マウス移動でパスを追加＆プレビュー描画
+editorContent.addEventListener('mousemove', e => {
+  if (!isLassoing) return;
+
+  lassoPoints.push( screenToCanvas(e.clientX, e.clientY) );
+  drawLassoOverlay();
+});
+
+// 投げ縄確定（塗りつぶし）
+editorContent.addEventListener('mouseup', e => {
+  if (!isLassoing) return;
+  isLassoing = false;
+
+  let fillMode;
+  if(e.button === 0)
+    fillMode = 'fill';
+  else if(e.button === 2)
+    fillMode = 'erase';
+  fillLassoRegion(fillMode);
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+});
+
+function drawLassoOverlay() {
+  octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+  if (lassoPoints.length < 2) return;
+
+  octx.save();
+  octx.lineWidth   = 2 / zoom;              // ズーム補正
+  octx.strokeStyle = 'rgba(0,0,0,0.8)';
+  octx.beginPath();
+  
+  // Path をたどる
+  octx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+  for (let i = 1; i < lassoPoints.length; i++) {
+    const pt = lassoPoints[i];
+    octx.lineTo(pt.x, pt.y);
+  }
+  
+  octx.stroke();
+  octx.restore();
+}
+
+function fillLassoRegion(mode = 'fill') {
+  if (lassoPoints.length < 3) return;
+
+  // Path2D を使うと便利
+  const path = new Path2D();
+  path.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+  for (let i = 1; i < lassoPoints.length; i++) {
+    path.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+  }
+  path.closePath();
+
+  let fillColor;
+  if (mode == 'fill') {
+    fillColor = cursorMode == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
+  } else if (mode == 'erase') {
+    fillColor = 'rgb(255, 255, 255, 1.0)';
+  } else {
+    fillColor = 'rgb(255, 255, 255, 1.0)';
+  }
+
+  // drawCanvas に塗りつぶし
+  dctx.save();
+  dctx.fillStyle = fillColor;
+  dctx.fill(path);
+  dctx.restore();
+  applyCurrentDrawing();
+
+  if(processedImages[showMode][frameIndex]) processedImages[showMode][frameIndex].phase -= 1;
+  showImage(frameIndex);
+}
+
 
 editorContent.addEventListener("wheel", (e) => {
   e.preventDefault();
@@ -1393,8 +1606,28 @@ editorContent.addEventListener("wheel", (e) => {
 
 function updateTransform() {
   canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
-  if(zoom > 1.0) canvas.style.imageRendering = 'pixelated';
-  else canvas.style.imageRendering = 'auto';
+  drawCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+  overlayCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+  if(zoom > 1.0) {
+    canvas.style.imageRendering = 'pixelated';
+    drawCanvas.style.imageRendering = 'pixelated';
+    overlayCanvas.style.imageRendering = 'pixelated';
+  }
+  else {
+    canvas.style.imageRendering = 'auto';
+    drawCanvas.style.imageRendering = 'auto';
+    overlayCanvas.style.imageRendering = 'auto';
+  }
+}
+
+function screenToCanvas(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
 }
 
 
@@ -1425,8 +1658,9 @@ function makeUniformsCodes(paramsSize){
 const tracePressShaderCode = /* glsl */`
   @group(0) @binding(0) var<uniform> uniforms: Uniforms;
   @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
-  @group(0) @binding(2) var<storage, read_write> imageOutP: array<f32>;
-  @group(0) @binding(3) var<storage, read_write> imageOutC: array<u32>;
+  @group(0) @binding(2) var<storage, read> imageIn2: array<u32>;
+  @group(0) @binding(3) var<storage, read_write> imageOutP: array<f32>;
+  @group(0) @binding(4) var<storage, read_write> imageOutC: array<u32>;
   // @group(0) @binding(4) var<storage, read_write> imageOutD: array<u32>;
 
   @compute @workgroup_size(8, 8)
@@ -1451,9 +1685,9 @@ const tracePressShaderCode = /* glsl */`
     let index = y * w + x;
 
     let pixelIn = imageIn[u32(index)];
-    let r = f32((pixelIn >> 0u) & 0xFFu) / 255.;
-    let g = f32((pixelIn >> 8u) & 0xFFu) / 255.;
-    let b = f32((pixelIn >> 16u) & 0xFFu) / 255.;
+    var r = f32((pixelIn >> 0u) & 0xFFu) / 255.;
+    var g = f32((pixelIn >> 8u) & 0xFFu) / 255.;
+    var b = f32((pixelIn >> 16u) & 0xFFu) / 255.;
     let a = f32((pixelIn >> 24u) & 0xFFu) / 255.;
 
     let weights = array<f32, 4>(
@@ -1475,7 +1709,12 @@ const tracePressShaderCode = /* glsl */`
     // 出力値の決定
     // col = 0xCCIIPPFF: C: color index, I: intensity (0-255) (0 is white), P: padding, F: always 255
     let col = u32(idx) | (select(0xFFu, 0x00u, res.isWhite) << 8u) | (0x00u << 16u) | (0xFFu << 24u);
-    let pres = res.pressure;
+    var pres = res.pressure;
+
+    let pixelIn2 = imageIn2[u32(index)];
+    let r2 = f32((pixelIn2 >> 0u) & 0xFFu) / 255.;
+    let b2 = f32((pixelIn2 >> 16u) & 0xFFu) / 255.;
+    pres = min(pres * (1.0 + (r2 - b2) * 0.5), 1.0);
 
     // 出力 pressure, color
     imageOutP[u32(index)] = 1.0 - pres;
@@ -1992,6 +2231,12 @@ const denoise5x5ShaderCode = /* glsl */`
     // col = 0xCCIIPPFF: C: color index, I: intensity, P: padding, F: always 255
     let colId = (pixel >> 0u) & 0xFFu; // 0-7bit: 色ID
 
+    if (colId == 4u) {
+      let outPixel = colId | (0xFFu << 8u) | (0x00u << 16u) | (0xFFu << 24u);
+      imageOut[u32(index)] = outPixel;
+      return;
+    }
+
     // --- Step1: 外周チェック ---
     var outerFound = false;
     for (var i = 0; i < 16; i++) {
@@ -2142,7 +2387,7 @@ async function initWebGPU() {
 }
 
 // --- 画像処理 ---
-function preparePipelines(imageData, gCfg, fCfg) {
+function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
   const width = imageData.width;
   const height = imageData.height;
   const pixelCount = width * height;
@@ -2155,6 +2400,7 @@ function preparePipelines(imageData, gCfg, fCfg) {
   const buffers = {
     uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
     input: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
+    drawInput: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
     // DEBUG: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     pSharp: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
     pressure: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
@@ -2174,7 +2420,12 @@ function preparePipelines(imageData, gCfg, fCfg) {
     readbackDEB: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
   };
   const pixelArray = new Uint32Array(imageData.data.buffer);
-  device.queue.writeBuffer(buffers.input, 0, pixelArray);  
+  device.queue.writeBuffer(buffers.input, 0, pixelArray);
+
+  if (drawImageData){
+    const pixelArray2 = new Uint32Array(drawImageData.data.buffer);
+    device.queue.writeBuffer(buffers.drawInput, 0, pixelArray2);
+  }
 
   // width, height は u32、threshold は f32
   makeUniformsCodes(paramsSize);
@@ -2219,8 +2470,9 @@ function preparePipelines(imageData, gCfg, fCfg) {
       bindings: [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'input', binding: 1, type: 'read-only-storage' },
-        { name: 'pSharp', binding: 2, type: 'storage' },
-        { name: 'binary', binding: 3, type: 'storage' },
+        { name: 'drawInput', binding: 2, type: 'read-only-storage' },
+        { name: 'pSharp', binding: 3, type: 'storage' },
+        { name: 'binary', binding: 4, type: 'storage' },
         // { name: 'DEBUG', binding: 4, type: 'storage' },
       ]
     },
@@ -2333,12 +2585,14 @@ function preparePipelines(imageData, gCfg, fCfg) {
 let gpuProcessing = false;
 async function processImage(idx) {
   imageData = uploadedImages[idx];
+  drawImageData = drawImages[idx];
   if (!device || !imageData) return showStatus('準備が整っていません', 'error', 3000);
   if (gpuProcessing) return;
   gpuProcessing = true;
   showStatus('<div class="loading"><div class="spinner"></div>WebGPUで処理中...</div>');
   try {
-    const { buffers, steps, width, height } = preparePipelines(imageData, globalConfig, frameConfigs[idx]);
+
+    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, globalConfig, frameConfigs[idx]);
 
     for (const step of steps) {
       const encoder = await runShader(step.code, buffers, step.bindings, width, height);
@@ -2400,6 +2654,10 @@ async function showImage(i) {
     canvas.height = newHeight;
     offscreenCanvas.width = newWidth;
     offscreenCanvas.height = newHeight;
+    drawCanvas.width = newWidth;
+    drawCanvas.height = newHeight;
+    overlayCanvas.width = newWidth;
+    overlayCanvas.height = newHeight;
   }
 
   if(showMode == 'original'){
