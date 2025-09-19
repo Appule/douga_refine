@@ -377,7 +377,7 @@ function changeShowMode(mode) {
   showImage(frameIndex);
 }
 windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => changeShowMode('original'), true, 'rgb(0, 185, 40)');
-windows[0].addButton('<i class="fa-regular fa-image"></i> 最終出力', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
+windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
 windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => changeShowMode('pressure'), true);
 windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => changeShowMode('log'), true);
 // windows[0].addButton("DEBUG", changeShowMode('DEBUG'), true);
@@ -986,6 +986,7 @@ function applyCurrentDrawing(){
       if(drwToggleStates[i]) {
         drawImages[i] = drw;
         frameBtns[i].dbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+        if(processedImages[showMode]?.[i]) processedImages[showMode][i].phase -= 1;
       }
     }
   }
@@ -1076,7 +1077,8 @@ function updateDrwBtns(){
   if (drawImages[frameIndex]){
     dctx.putImageData(drawImages[frameIndex], 0, 0);
   } else {
-    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    dctx.fillStyle = '#FFFFFF';
+    dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
   }
 }
 
@@ -1139,12 +1141,15 @@ dropZone.addEventListener("drop", (e) => {
   drawImages = new Array(fileInfos.length);
   processedImages = { pressure: new Array(fileInfos.length), log: new Array(fileInfos.length), processed: new Array(fileInfos.length) };
   
+  // 各ボタンの初期設定
   fileInfos.forEach((info, index) => {
+    const isFirst = index == 0;
     const row = document.createElement("div");
     row.className = "button-row";
     //// フレームボタン 'rgba(84, 106, 233, 1)'
     const fbtn = document.createElement("button");
     fbtn.classList.add("frame-btn");
+    if(isFirst) fbtn.classList.add('accent');
     fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
     fbtn.textContent = `${info.padded}`;
     fbtn.addEventListener("mousedown", async (event) => {
@@ -1164,22 +1169,18 @@ dropZone.addEventListener("drop", (e) => {
       if(buttonIsPressed) {
         fbtn.classList.add('active');
         frameIndex = index;
+        drwToggleStates.fill(false);
+        drwToggleStates[index] = true;
         await showImage(index);
         // frameIndexのボタンを強調表示
         updateFrmBtns(index);
+        updateDrwBtns();
         if(cfgIsPressed){
           cfgToggleStates.fill(false);
           for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
             cfgToggleStates[i] = true;
           }
           updateCfgBtns();
-        }
-        if(buttonIsPressed){
-          drwToggleStates.fill(false);
-          for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
-            drwToggleStates[i] = true;
-          }
-          updateDrwBtns();
         }
       }
       // プレビュー
@@ -1204,8 +1205,9 @@ dropZone.addEventListener("drop", (e) => {
 
     // drawingボタン 'rgba(230, 129, 71, 1)'
     const dbtn = document.createElement("button");
-    drwToggleStates[index] = false;
+    drwToggleStates[index] = isFirst;
     dbtn.classList.add("draw-btn");
+    if(isFirst) dbtn.classList.add('accent');
     dbtn.innerHTML = '';
     dbtn.addEventListener("mousedown", (event) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
@@ -1542,7 +1544,6 @@ function drawLassoOverlay() {
     const pt = lassoPoints[i];
     octx.lineTo(pt.x, pt.y);
   }
-  
   octx.stroke();
   octx.restore();
 }
@@ -1574,7 +1575,6 @@ function fillLassoRegion(mode = 'fill') {
   dctx.restore();
   applyCurrentDrawing();
 
-  if(processedImages[showMode][frameIndex]) processedImages[showMode][frameIndex].phase -= 1;
   showImage(frameIndex);
 }
 
@@ -1714,7 +1714,7 @@ const tracePressShaderCode = /* glsl */`
     let pixelIn2 = imageIn2[u32(index)];
     let r2 = f32((pixelIn2 >> 0u) & 0xFFu) / 255.;
     let b2 = f32((pixelIn2 >> 16u) & 0xFFu) / 255.;
-    pres = min(pres * (1.0 + (r2 - b2) * 0.5), 1.0);
+    pres = min(pres * (1.0 + (r2 - b2) * 1.0), 1.0);
 
     // 出力 pressure, color
     imageOutP[u32(index)] = 1.0 - pres;
