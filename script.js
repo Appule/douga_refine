@@ -360,7 +360,7 @@ let cfgIsPressed = false;
 let drwToggleStates = []; // drawボタンのトグル状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
-let currentConfig = {bgColor: '#ffffff', colorBlocks: {}}; 
+let currentConfig = { bgColor: '#ffffff', colorBlocks: {} }; 
 let globalConfig = null;
 let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
@@ -610,7 +610,7 @@ function saveConfig() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalConfig, null, 2));
   const dlAnchorElem = document.createElement('a');
   dlAnchorElem.setAttribute("href", dataStr);
-  dlAnchorElem.setAttribute("download", `config.json`);
+  dlAnchorElem.setAttribute("download", `config_v2.json`);
   dlAnchorElem.click(); 
   showStatus('Configファイルの保存が完了しました。', 'success', 3000);
 }
@@ -784,15 +784,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.userSelect = '';
   });
   
-  createColorBlock('黒', '#000000');
-  createColorBlock('赤', '#ff0000');
-  createColorBlock('緑', '#00ff00');
-  createColorBlock('青', '#0000ff');
-    
-  const bgPicker = document.querySelector('input[type="color"][data-label="背景"]');
+  createColorBlock('#000000', '#000000');
+  createColorBlock('#ff0000', '#ff0000');
+  createColorBlock('#00ff00', '#00ff00');
+  createColorBlock('#0000ff', '#0000ff');
+  
   bgPicker.addEventListener('input', () => {
-    bgColor = bgPicker.value;
-    console.log(`カラーピッカー更新: 背景 = ${bgColor}`);
+    currentConfig.bgColor = bgPicker.value;
+    console.log(`カラーピッカー更新: 背景 = ${currentConfig.bgColor}`);
     applyCurrentConfig();
     ++updatePhase;
     showImage(frameIndex);
@@ -802,54 +801,66 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 新しいカラーブロック要素を作成
-function createColorBlock(label, initialColor) {
+function createColorBlock(initialLabelColor, initialColor) {
+  const colorBlockSize = Object.keys(currentConfig.colorBlocks).length;
   const container = document.querySelector('.color-content');
+  if(colorBlockSize != 0 && container.lastElementChild.id == 'addColorBtn') container.lastElementChild.remove();
 
   let html = `
-  <div class="color-block" data-label="${label}">
-    <div class="color-control-group">
-      <span>${label}</span>
-      <input type="color" class="color-picker" value="${initialColor}" data-label="${label}">
-      <div class="sliders-container">
-        <div class="slider-row">
-          <span class="slider-label">閾値　</span>
-          <input type="range" class="color-slider" min="0" max="1" step="0.01" value="0.5" data-channel="threshold"/>
-          <input type="number" class="slider-value" min="0" max="1" step="0.01" value="0.5"/>
+    <div class="color-block" data-label="${colorBlockSize}">
+      <div class="color-control-group">
+        <div class="picker-stack">
+          <input type="color" class="color-picker" value="${initialColor}" data-label="${colorBlockSize}" />
+          <span class="picker-arrow">▼</span>
+          <input type="color" class="color-picker label-picker" value="${initialLabelColor}" >
         </div>
-        <div class="slider-row">
-          <span class="slider-label">線検知</span>
-          <input type="range" class="color-slider" min="0" max="10" step="0.1" value="0" data-channel="log">
-          <input type="number" class="slider-value" min="0" max="10" step="0.1" value="0.0"/>
-        </div>
-        <div class="slider-row" style="display: none;">
-          <span class="slider-label">幅調整</span>
-          <input type="range" class="color-slider" min="-5" max="5" step="0.1" value="0.0" data-channel="gau">
-          <input type="number" class="slider-value" min="-5" max="5" step="0.1" value="0.0"/>
-        </div>
-        <div class="slider-row">
-          <span class="slider-label">重み　</span>
-          <input type="range" class="color-slider" min="0" max="10" step="0.1" value="1" data-channel="weight">
-          <input type="number" class="slider-value" min="0" max="10" step="0.1" value="1.0"/>
+        <div class="sliders-container">
+          <div class="slider-row">
+            <span class="slider-label">閾値　</span>
+            <input type="range" class="color-slider" min="0" max="1" step="0.01" value="0.5" data-channel="threshold"/>
+            <input type="number" class="slider-value" min="0" max="1" step="0.01" value="0.5"/>
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">線検知</span>
+            <input type="range" class="color-slider" min="0" max="10" step="0.1" value="0" data-channel="log">
+            <input type="number" class="slider-value" min="0" max="10" step="0.1" value="0.0"/>
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">重み　</span>
+            <input type="range" class="color-slider" min="0" max="10" step="0.1" value="1" data-channel="weight">
+            <input type="number" class="slider-value" min="0" max="10" step="0.1" value="1.0"/>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+    ${
+      colorBlockSize < 7 ? `
+        <button style="width: 50px;" id="addColorBtn" >
+          ＋
+        </button>
+      ` : ``
+    }
   `;
+
   container.insertAdjacentHTML('beforeend', html);
 
-  const sliders = { threshold: 0.5, log:0, gau:0, weight:1 };
-  currentConfig.colorBlocks[label] = { color: initialColor, sliders: sliders };
+  container.lastElementChild.addEventListener('click', () => {
+    createColorBlock('#000000', '#000000');
+  });
+
+  const sliders = { threshold: 0.5, log:0, weight:1 };
+  currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders };
   applyCurrentConfig();
 
   // イベントをバインド
-  const block = container.querySelector(`.color-block[data-label="${label}"]`);
-  setupSliderListeners(block, label);
-  setupColorPickerListeners(block, label);
+  const block = container.querySelector(`.color-block[data-label="${colorBlockSize}"]`);
+  setupSliderListeners(block, colorBlockSize);
+  setupColorPickerListeners(block, colorBlockSize);
 }
 
-const defaultSliderValue = { threshold: 0, log: 0, gau: 0, weight: 0 };
-const gValueRanges = { threshold: [0, 1], log: [0, 10], gau: [-5, 5], weight: [0, 10] };
-const fValueRanges = { threshold: [-0.2, 0.2], log: [-2, 2], gau: [-2, 2], weight: [-2, 2] };
+const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
+const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
+const fValueRanges = { threshold: [-0.2, 0.2], log: [-2, 2], weight: [-2, 2] };
 let colorEditorMode = 'global';
 let pColorEditorMode = colorEditorMode;
 function updateColorBlocks(cfg){ // カラーブロック値を更新
@@ -859,15 +870,16 @@ function updateColorBlocks(cfg){ // カラーブロック値を更新
   currentConfig.bgColor = colorCfg.bgColor;
   for(let i = 0; i < keys.length; ++i){ // 黒,赤,緑,青,...
     currentConfig.colorBlocks[keys[i]].color = colorCfg.colorBlocks[keys[i]].color;
+    currentConfig.colorBlocks[keys[i]].labelColor = colorCfg.colorBlocks[keys[i]].labelColor;
     currentConfig.colorBlocks[keys[i]].sliders = sliderCfg ? { ...sliderCfg.colorBlocks[keys[i]].sliders } : { ...defaultSliderValue };
   }
   updateConfig();
   pColorEditorMode = colorEditorMode;
 }
 
+// currentConfig に表示中の値を代入 bgColor, colorBlks{col, lcol, sliders{...}}
 function updateConfig(){
   if (currentConfig.bgColor) {
-    const bgPicker = document.querySelector('input[type="color"][data-label="背景"]');
     if (bgPicker) bgPicker.value = currentConfig.bgColor;
   }
   if (currentConfig.colorBlocks) {
@@ -875,8 +887,13 @@ function updateConfig(){
       currentConfig.colorBlocks[label].color = colorBlock.color;
       const picker = document.querySelector(`.color-block[data-label="${label}"] .color-picker`);
       if (picker) picker.value = colorBlock.color;
+      
+      currentConfig.colorBlocks[label].labelColor = colorBlock.labelColor;
+      const arrow = picker.nextElementSibling;
+      const labelPicker = arrow.nextElementSibling;
+      if (labelPicker) labelPicker.value = colorBlock.labelColor;
       if (colorBlock.sliders) {
-        for (const [param, value] of Object.entries(colorBlock.sliders)) { // param...th,log,gau,wei value...0.5,0,0,1.0
+        for (const [param, value] of Object.entries(colorBlock.sliders)) { // param ... th, log, wei | value ... 0.5, 0, 1.0
           currentConfig.colorBlocks[label].sliders[param] = value;
           const slider = document.querySelector(`.color-block[data-label="${label}"] .color-slider[data-channel="${param}"]`);
           const number = slider?.parentElement.querySelector('.slider-value');
@@ -963,6 +980,15 @@ function setupColorPickerListeners(container, label) {
     ++updatePhase;
     showImage(frameIndex);
   });
+  const arrow = picker.nextElementSibling;
+  const labelPicker = arrow.nextElementSibling;
+  labelPicker.addEventListener('input', () => {
+    currentConfig.colorBlocks[label].labelColor = labelPicker.value;
+    console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].labelColor}`);
+    applyCurrentConfig();
+    ++updatePhase;
+    showImage(frameIndex);
+  });
 }
 
 function applyCurrentConfig(){ // currentConfig を globalConfig/frameConfigs に適応
@@ -992,6 +1018,7 @@ function applyCurrentDrawing(){
   }
 }
 
+//// HTML要素の処理
 const menuContent = document.querySelector(".menu-content");
 const editorContent = document.querySelector(".editor-content");
 editorContent.innerHTML = `
@@ -1019,68 +1046,8 @@ const octx = overlayCanvas.getContext('2d');
 const buttons = document.querySelectorAll('.preview-btn');
 const previewCanvas = document.getElementById('previewCanvas');
 const pctx = previewCanvas.getContext('2d');
-
-// プレビューキャンバス移動
-document.addEventListener('mousemove', e => {
-  if (previewCanvas.style.display === 'none') return;
-  // キャンバス幅／高さを読んで左にオフセット
-  const cw = previewCanvas.width;
-  const ch = previewCanvas.height;
-  // マウスの左側に表示、上辺をカーソルの中央に合わせる
-  previewCanvas.style.left = (e.pageX - cw - 10) + 'px';
-  previewCanvas.style.top  = (e.pageY - ch/2) + 'px';
-});
-
-function updateFrmBtns(index){
-  frameBtns.forEach((b, i) => {
-    if (i === index) b.fbtn.classList.add('accent');
-    else b.fbtn.classList.remove('accent');
-  });
-}
-
-function updateCfgBtns(){
-  let noActive = true;
-  frameBtns.forEach((b, i) => {
-    if (cfgToggleStates[i]) {
-      b.cbtn.classList.add('accent');
-      noActive = false;
-    }
-    else {
-      b.cbtn.classList.remove('accent');
-    }
-  });
-  if (noActive) {
-    colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
-    colorEditorMode = 'global';
-    updateColorBlocks(globalConfig);
-  } else {
-    colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
-    colorEditorMode = 'frames';
-    updateColorBlocks(frameConfigs[frameCfgIndex]);
-  }
-}
-
-function updateDrwBtns(){
-  let noActive = true;
-  frameBtns.forEach((b, i) => {
-    if (drwToggleStates[i]) {
-      b.dbtn.classList.add('accent');
-      noActive = false;
-    }
-    else {
-      b.dbtn.classList.remove('accent');
-    }
-  });
-  if (noActive) {
-    // 全drawボタンが非アクティブの時
-  }
-  if (drawImages[frameIndex]){
-    dctx.putImageData(drawImages[frameIndex], 0, 0);
-  } else {
-    dctx.fillStyle = '#FFFFFF';
-    dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
-  }
-}
+// 背景カラーピッカー
+const bgPicker = document.querySelector('input[type="color"][data-label="bgColorPicker"]');
 
 menuContent.addEventListener("contextmenu", (event) => {
   event.preventDefault();
@@ -1143,13 +1110,11 @@ dropZone.addEventListener("drop", (e) => {
   
   // 各ボタンの初期設定
   fileInfos.forEach((info, index) => {
-    const isFirst = index == 0;
     const row = document.createElement("div");
     row.className = "button-row";
     //// フレームボタン 'rgba(84, 106, 233, 1)'
     const fbtn = document.createElement("button");
     fbtn.classList.add("frame-btn");
-    if(isFirst) fbtn.classList.add('accent');
     fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
     fbtn.textContent = `${info.padded}`;
     fbtn.addEventListener("mousedown", async (event) => {
@@ -1205,9 +1170,8 @@ dropZone.addEventListener("drop", (e) => {
 
     // drawingボタン 'rgba(230, 129, 71, 1)'
     const dbtn = document.createElement("button");
-    drwToggleStates[index] = isFirst;
+    drwToggleStates[index] = index == 0;
     dbtn.classList.add("draw-btn");
-    if(isFirst) dbtn.classList.add('accent');
     dbtn.innerHTML = '';
     dbtn.addEventListener("mousedown", (event) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
@@ -1310,16 +1274,23 @@ dropZone.addEventListener("drop", (e) => {
           offscreenCanvas.height = canvas.height;
           ctx.drawImage(img, 0, 0);
           uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-          if (index === 0) await showImage(0);
-          else if (index === fileInfos.length - 1)
-            showStatus('画像が読み込まれました。処理を実行できます。', 'success', 3000);
+          initCanvas('', index, fileNum);
         };
       };
       reader.readAsDataURL(info.file);
     }
   });
   ++updatePhase;
+  updateFrmBtns(0);
+  updateDrwBtns();
+
+  // 最初の文言を削除
+  const h1 = editorContent.querySelector('h1');
+  const p = editorContent.querySelector('p');
+  if (h1) h1.remove();
+  if (p) p.remove();
+  editorContent.style.alignItems = 'initial';
+
   showStatus('画像を読み込み中...', 'info');
 });
 
@@ -1338,10 +1309,7 @@ async function loadTIFF(file, index, fileNum) {
   offscreenCanvas.height = canvas.height;
   ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
   uploadedImages[index] = ctx.getImageData(0, 0, width, height);
-
-  if (index === 0) await showImage(0);
-  else if (index === fileNum - 1)
-    showStatus('TIFF画像が読み込まれました。', 'success', 3000);
+  initCanvas('TIFF', index, fileNum);
 }
 
 async function loadTGA(file, index, fileNum) {
@@ -1434,11 +1402,67 @@ async function loadTGA(file, index, fileNum) {
 
   // --- キャッシュ ---
   uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  initCanvas('TGA', index, fileNum);
+}
+
+async function initCanvas(extName, index, fileNum){
 
   if (index === 0) {
     await showImage(0);
-  } else if (index === fileNum - 1) {
-    showStatus('TGA画像が読み込まれました。', 'success', 3000);
+    if (drawImages[frameIndex]){
+      dctx.putImageData(drawImages[frameIndex], 0, 0);
+    } else {
+      dctx.fillStyle = '#FFFFFF';
+      dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
+  }
+  else if (index === fileNum - 1) {
+    showStatus(`${extName}画像が読み込まれました。`, 'success', 3000);
+  }
+}
+// フレームボタンの更新
+function updateFrmBtns(index){
+  frameBtns.forEach((b, i) => {
+    if (i === index) b.fbtn.classList.add('accent');
+    else b.fbtn.classList.remove('accent');
+  });
+}
+// コンフィグボタンの更新
+function updateCfgBtns(){
+  let noActive = true;
+  frameBtns.forEach((b, i) => {
+    if (cfgToggleStates[i]) {
+      b.cbtn.classList.add('accent');
+      noActive = false;
+    }
+    else {
+      b.cbtn.classList.remove('accent');
+    }
+  });
+  if (noActive) {
+    colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
+    colorEditorMode = 'global';
+    updateColorBlocks(globalConfig);
+  } else {
+    colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
+    colorEditorMode = 'frames';
+    updateColorBlocks(frameConfigs[frameCfgIndex]);
+  }
+}
+// 描画編集ボタンの更新
+function updateDrwBtns(){
+  let noActive = true;
+  frameBtns.forEach((b, i) => {
+    if (drwToggleStates[i]) {
+      b.dbtn.classList.add('accent');
+      noActive = false;
+    }
+    else {
+      b.dbtn.classList.remove('accent');
+    }
+  });
+  if (noActive) {
+    // 全drawボタンが非アクティブの時
   }
 }
 
@@ -1447,7 +1471,18 @@ document.addEventListener('mousedown', (event) => {
     buttonIsPressed = true;
 });
 
-// カメラワーク/範囲選択処理
+// プレビューキャンバス移動
+document.addEventListener('mousemove', e => {
+  if (previewCanvas.style.display === 'none') return;
+  // キャンバス幅／高さを読んで左にオフセット
+  const cw = previewCanvas.width;
+  const ch = previewCanvas.height;
+  // マウスの左側に表示、上辺をカーソルの中央に合わせる
+  previewCanvas.style.left = (e.pageX - cw - 10) + 'px';
+  previewCanvas.style.top  = (e.pageY - ch/2) + 'px';
+});
+
+// カメラワーク / 範囲選択処理
 let zoom = 1;
 let offsetX = 0, offsetY = 0;
 let isDragging = false;
@@ -1634,23 +1669,25 @@ function screenToCanvas(clientX, clientY) {
 // --- WebGPUコンピュートシェーダーコード ---
 let uniformsCode = '';
 
-function makeUniformsCodes(paramsSize){
+function makeUniformsCodes(){
   uniformsCode = `
     struct ColorUniform {
-      col: vec4<f32>,
+      col: f32,
+      labelCol: f32,
       threshold: f32,
       logFac: f32,
-      gauFac: f32,
       weight: f32,
+      pad0: f32,
+      pad1: f32,
+      pad2: f32,
     };
 
     struct Uniforms {
       width: u32,
       height: u32,
       colorNum: u32,
-      padding: u32,
-      params: array<ColorUniform, ${paramsSize}>,
-      whiteCol: vec4<f32>,
+      whiteCol: u32,
+      params: array<ColorUniform, 8>,
     }
   `;
 }
@@ -1665,13 +1702,13 @@ const tracePressShaderCode = /* glsl */`
 
   @compute @workgroup_size(8, 8)
   fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let bgPos = rgb2xyz(uniforms.whiteCol.rgb);
-    let samplePallet = array<vec3f, 4>(
-      rgb2xyz(uniforms.params[0].col.rgb), // 黒
-      rgb2xyz(uniforms.params[1].col.rgb), // 赤
-      rgb2xyz(uniforms.params[2].col.rgb), // 緑
-      rgb2xyz(uniforms.params[3].col.rgb), // 青
-    );
+    let bgPos = int2xyz(uniforms.whiteCol);
+    var samplePallet: array<vec3f, 8>;
+    var weights: array<f32, 8>;
+    for (var i: u32 = 0u; i < 8u; i = i + 1u) {
+      samplePallet[i] = int2xyz(u32(uniforms.params[i].col));
+      weights[i] = uniforms.params[i].weight;
+    }
     
     let width = uniforms.width;
     let height = uniforms.height;
@@ -1685,20 +1722,9 @@ const tracePressShaderCode = /* glsl */`
     let index = y * w + x;
 
     let pixelIn = imageIn[u32(index)];
-    var r = f32((pixelIn >> 0u) & 0xFFu) / 255.;
-    var g = f32((pixelIn >> 8u) & 0xFFu) / 255.;
-    var b = f32((pixelIn >> 16u) & 0xFFu) / 255.;
-    let a = f32((pixelIn >> 24u) & 0xFFu) / 255.;
+    let xyz = int2xyz(pixelIn);
 
-    let weights = array<f32, 4>(
-      uniforms.params[0].weight,
-      uniforms.params[1].weight,
-      uniforms.params[2].weight,
-      uniforms.params[3].weight,
-    );
-    let xyz = rgb2xyz(vec3f(r, g, b));
-
-    let idx = decideIndexByFacesAndWeights(bgPos, samplePallet, weights, xyz);
+    let idx = decideIndexByFacesAndWeights(bgPos, samplePallet, u32(uniforms.colorNum), weights, xyz);
 
     // 白か色かの判定
     let res = classifyWithThreshold(
@@ -1748,24 +1774,13 @@ const tracePressShaderCode = /* glsl */`
   }
 
   // 3つの面 (0,1,2), (0,2,3), (0,1,3) と白→p の直線との交点のうち、最も近いものを返す
-  fn closestIntersectionOnFaces(white: vec3f, samplePallet: array<vec3f, 4>, p: vec3f) -> Hit {
+  fn closestIntersectionOnFaces(white: vec3f, samplePallet: array<vec3f, 8>, colorNum: u32, p: vec3f) -> Hit {
     let rd = p - white;
 
     var best = Hit(false, 1e30, vec3f(0.0));
 
-    // 面1: (0,1,2)
-    {
-      let h = intersectRayPlane(white, rd, samplePallet[0], samplePallet[1], samplePallet[2]);
-      if (h.hit && h.t < best.t) { best = h; }
-    }
-    // 面2: (0,2,3)
-    {
-      let h = intersectRayPlane(white, rd, samplePallet[0], samplePallet[2], samplePallet[3]);
-      if (h.hit && h.t < best.t) { best = h; }
-    }
-    // 面3: (0,1,3)
-    {
-      let h = intersectRayPlane(white, rd, samplePallet[0], samplePallet[1], samplePallet[3]);
+    for(var i: u32 = 1u; i < colorNum; i++){
+      let h = intersectRayPlane(white, rd, samplePallet[0], samplePallet[i], samplePallet[i % (colorNum-1) + 1]);
       if (h.hit && h.t < best.t) { best = h; }
     }
 
@@ -1774,11 +1789,11 @@ const tracePressShaderCode = /* glsl */`
 
   // 交点 q が得られたら、点(0..3) それぞれへの距離に weights を掛けたスコアで最も近い色を選ぶ
   // スコア: score_i = weights[i] / max(distance(q, sample[i]), EPS)
-  fn pickIndexByWeightedNearest(samplePallet: array<vec3f, 4>, weights: array<f32, 4>, q: vec3f) -> i32 {
+  fn pickIndexByWeightedNearest(samplePallet: array<vec3f, 8>, weights: array<f32, 8>, colorNum: u32, q: vec3f) -> i32 {
     var bestIdx: i32 = 0;
     var bestScore: f32 = -1.0;
 
-    for (var i: u32 = 0u; i < 4u; i++) {
+    for (var i: u32 = 0u; i < colorNum; i++) {
       let d = length(q - samplePallet[i]);
       let w = max(weights[i], EPS);
       let score = w / max(d, EPS);
@@ -1796,16 +1811,17 @@ const tracePressShaderCode = /* glsl */`
   // 3) 交点が見つからなければフォールバック（p に最も近い色を weights 付きで選択）
   fn decideIndexByFacesAndWeights(
     white: vec3f,
-    samplePallet: array<vec3f, 4>,
-    weights: array<f32, 4>,
+    samplePallet: array<vec3f, 8>,
+    colorNum: u32,
+    weights: array<f32, 8>,
     p: vec3f
   ) -> i32 {
-    let h = closestIntersectionOnFaces(white, samplePallet, p);
+    let h = closestIntersectionOnFaces(white, samplePallet, colorNum, p);
     if (h.hit) {
-      return pickIndexByWeightedNearest(samplePallet, weights, h.q);
+      return pickIndexByWeightedNearest(samplePallet, weights, colorNum, h.q);
     } else {
       // フォールバック：交点が得られないときは p 自体で重み付き最近傍
-      return pickIndexByWeightedNearest(samplePallet, weights, p);
+      return pickIndexByWeightedNearest(samplePallet, weights, colorNum, p);
     }
   }
 
@@ -1817,7 +1833,7 @@ const tracePressShaderCode = /* glsl */`
 
   fn classifyWithThreshold(
     bgPos: vec3f,
-    samplePallet: array<vec3f, 4>,
+    samplePallet: array<vec3f, 8>,
     xyz: vec3f,
     idx: i32,
     threshold: f32
@@ -1882,8 +1898,12 @@ const tracePressShaderCode = /* glsl */`
     return vec3f(x, y, z);
   }
 
-  fn rgb2xyz(rgb: vec3f) -> vec3f {
-    return hsl2xyz(rgb2hsl(rgb));
+  fn int2xyz(i: u32) -> vec3f {
+    var r = f32((i >> 0u) & 0xFFu) / 255.;
+    var g = f32((i >> 8u) & 0xFFu) / 255.;
+    var b = f32((i >> 16u) & 0xFFu) / 255.;
+
+    return hsl2xyz(rgb2hsl(vec3f(r, g, b)));
   }
 `;
 
@@ -2125,12 +2145,12 @@ const affineBinaryShaderCode = /* glsl */`
     let gau = f32((pixelGau >> 8u) & 0xFFu); // 色値
 
     // 閾値処理
-    let gauFactor = 0.0004 * (uniforms.params[colId].logFac * 2.0 - uniforms.params[colId].gauFac) * gau;
+    let gauFactor = 0.0008 * uniforms.params[colId].logFac * gau;
     let lapFactor = 0.1 * uniforms.params[colId].logFac * (1.0 - lap);
     let factor = lapFactor - gauFactor;
     let threshold = min(uniforms.params[colId].threshold + clamp(factor, 0.0, 1.0), 0.9);
 
-    let res = select(4u, colId, pres < threshold);
+    let res = select(8u, colId, pres < threshold);
     let outPixel = u32(res) | (0xFFu << 8u) | (0x00u << 16u) | (0xFFu << 24u); // 0xCCIIPPFF
     imageOut[u32(index)] = outPixel;
   }
@@ -2308,19 +2328,20 @@ const colorIndexToColorShaderCode = /* glsl */`
   @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
   @group(0) @binding(2) var<storage, read_write> imageOut: array<u32>;
 
-  // 色パレット (黒, 赤, 緑, 青, 白)
-  const idPallet = array<vec3f, 5>(
-    vec3f(0.,0.,0.),
-    vec3f(255.,0.,0.),
-    vec3f(0.,255.,0.),
-    vec3f(0.,0.,255.),
-    vec3f(255.,255.,255.),
-  );
-
   @compute @workgroup_size(8, 8)
   fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let width = uniforms.width;
     let height = uniforms.height;
+
+    var idPallet: array<vec3f, 9>;
+    for (var i: u32 = 0u; i < 8u; i = i + 1u) {
+      let pix = u32(uniforms.params[i].labelCol);
+      var r = f32((pix >> 0u) & 0xFFu);
+      var g = f32((pix >> 8u) & 0xFFu);
+      var b = f32((pix >> 16u) & 0xFFu);
+      idPallet[i] = vec3f(r, g, b);
+    }
+    idPallet[8] = vec3f(255.,255.,255.);
 
     if (global_id.x >= width || global_id.y >= height) {
       return;
@@ -2395,8 +2416,7 @@ function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
   const fColBlks = fCfg ? fCfg.colorBlocks : null;
   const cbKeys = Object.keys(gCfg.colorBlocks);
 
-  const paramsSize = Math.ceil((cbKeys.length) / 4) * 4;
-  const uniSize = Math.ceil((8 * paramsSize + 8) / 4) * 4;
+  const uniSize = Math.ceil((8 * 8 + 4) / 4) * 4;
   const buffers = {
     uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
     input: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
@@ -2428,39 +2448,49 @@ function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
   }
 
   // width, height は u32、threshold は f32
-  makeUniformsCodes(paramsSize);
+  makeUniformsCodes();
   const uniformArray = new ArrayBuffer(uniSize * 4);
   const u32View = new Uint32Array(uniformArray);
   const f32View = new Float32Array(uniformArray);
   u32View[0] = width;
   u32View[1] = height;
   u32View[2] = cbKeys.length;
-  u32View[3] = 0; // padding
+  const bgCol = hexToInt32(fCfg ? fCfg.bgColor : gCfg.bgColor);
+  u32View[3] = bgCol;
+
+  const [firstKey, ...restKeys] = cbKeys;
+  const sortedRest = restKeys
+    .map(key => {
+      const hex    = fCfg ? fColBlks[key].color : gColBlks[key].color;
+      const colInt = hexToInt32(hex);
+      return { key, hue: hexToHue(colInt) };
+    })
+    .sort((a, b) => a.hue - b.hue)
+    .map(obj => obj.key);
+  const sortedKeys = [firstKey, ...sortedRest];
+
   const base = 4;
-  for(let i = 0; i < cbKeys.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
-    const col = hexToRgb01(fCfg ? fColBlks[cbKeys[i]].color : gColBlks[cbKeys[i]].color);
-    f32View[i*8 + base + 0] = col[0];
-    f32View[i*8 + base + 1] = col[1];
-    f32View[i*8 + base + 2] = col[2];
-    f32View[i*8 + base + 3] = 0;
-    const sliders = gColBlks[cbKeys[i]].sliders;
-    f32View[i*8 + base + 4] = sliders.threshold;
-    f32View[i*8 + base + 5] = sliders.log;
-    f32View[i*8 + base + 6] = sliders.gau;
-    f32View[i*8 + base + 7] = sliders.weight;
-    if(fCfg){
-      const fSliders = fColBlks[cbKeys[i]].sliders;
-      f32View[i*8 + base + 4] += fSliders.threshold;
-      f32View[i*8 + base + 5] += fSliders.log;
-      f32View[i*8 + base + 6] += fSliders.gau;
-      f32View[i*8 + base + 7] += fSliders.weight;
+  for(let i = 0; i < sortedKeys.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
+    const k = sortedKeys[i];
+    const src = fCfg ? fColBlks[k] : gColBlks[k];
+
+    f32View[i*8 + base + 0] = hexToInt32(src.color);
+    f32View[i*8 + base + 1] = hexToInt32(src.labelColor);
+
+    // sliders
+    let t = src.sliders.threshold;
+    let l = src.sliders.log;
+    let w = src.sliders.weight;
+    if (fCfg) {
+      const fsl = fColBlks[k].sliders;
+      t += fsl.threshold;
+      l += fsl.log;
+      w += fsl.weight;
     }
+    f32View[i * 8 + base + 2] = t;
+    f32View[i * 8 + base + 3] = l;
+    f32View[i * 8 + base + 4] = w;
   }
-  const bgCol = hexToRgb01(fCfg ? fCfg.bgColor : gCfg.bgColor);
-  f32View[8 * (cbKeys.length) + base + 0] = bgCol[0];
-  f32View[8 * (cbKeys.length) + base + 1] = bgCol[1];
-  f32View[8 * (cbKeys.length) + base + 2] = bgCol[2];
-  f32View[8 * (cbKeys.length) + base + 3] = 0;
   device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
 
   const steps = [
@@ -2740,14 +2770,49 @@ async function runShader(shaderCode, buffers, bindings, width, height) {
   return commandEncoder;
 }
 
-function hexToRgb01(hex) {
-  // #を除去
-  hex = hex.replace(/^#/, '');
+function hexToInt32(hex) {
+  // 先頭の#を除去
+  let h = hex.replace(/^#/, '');
+  let r, g, b, a = 0xFF;
 
-  // 各チャンネルを16進数から10進数に
-  const r = parseInt(hex.substring(0, 2), 16) / 255;
-  const g = parseInt(hex.substring(2, 4), 16) / 255;
-  const b = parseInt(hex.substring(4, 6), 16) / 255;
+  if (h.length === 3) {
+    // '#RGB' → 'R','G','B' を複製
+    r = parseInt(h[0] + h[0], 16);
+    g = parseInt(h[1] + h[1], 16);
+    b = parseInt(h[2] + h[2], 16);
+  } else if (h.length === 6 || h.length === 8) {
+    // '#RRGGBB' or '#RRGGBBAA'
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+    if (h.length === 8) {
+      a = parseInt(h.slice(6, 8), 16);
+    }
+  } else {
+    throw new Error('Invalid HEX color: ' + hex);
+  }
+  // ビットシフトで 0xAABBGGRR
+  return ((r & 0xFF))  | 
+         ((g & 0xFF) << 8)  | 
+         ((b & 0xFF) << 16) | 
+         ((a & 0x00) << 24);
+}
 
-  return [r, g, b];
+function hexToHue(colInt32) {
+  // 0xRRGGBBAA から R,G,B を取り出し [0,1] に正規化
+  const r = ((colInt32 >> 0 ) & 0xff) / 255;
+  const g = ((colInt32 >> 8 ) & 0xff) / 255;
+  const b = ((colInt32 >> 16) & 0xff) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  let h = 0;
+  if (d > 0) {
+    if      (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else                h = (r - g) / d + 4;
+    h *= 60;
+    if (h < 0) h += 360;
+  }
+  return h;
 }

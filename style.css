@@ -170,9 +170,15 @@ body, html {
   justify-content: center;
 }
 
+.picker-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .color-picker {
   width: 80px;
-  height: 80px;
+  height: 45px;
   border: 1px solid #ccc;
   padding: 0;
   cursor: pointer;
