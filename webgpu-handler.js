@@ -283,7 +283,8 @@ async function processImage(idx) {
   }
 }
 
-async function showImage(i) {
+// 保存されている画像を描画
+async function showImage(i, showMode) {
   if (!uploadedImages[i]) return;
 
   if(showMode == 'original'){
@@ -314,6 +315,7 @@ async function showImage(i) {
   }
 }
 
+// ImageData保存
 function cacheProcessedImage(outputArray, width, height) {
   // Uint32Array か Uint8Array かを判別して Uint8ClampedArray に変換
   let u8;
@@ -326,6 +328,7 @@ function cacheProcessedImage(outputArray, width, height) {
   const imageData = new ImageData(u8, width, height);
   osctx.putImageData(imageData, 0, 0);
 }
+
 // --- GPU処理実行 ---
 async function runShader(shaderCode, buffers, bindings, width, height) {
   const shaderModule = device.createShaderModule({ code: shaderCode });

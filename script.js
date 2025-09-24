@@ -12,30 +12,64 @@ const fileNameInput = windows[0].addTextInput('保存ファイル名', () => {
 });
 fileNameInput.classList.add('blink');
 
-let showMode = 'processed';
-let updatePhase = 0;
-let frameIndex = 0;
-let frameCfgIndex = 0;
+let showMode = 'processed'; // 現在の描画モード
+let updatePhase = 0; // コンフィグの状態
+let frameIndex = 0; // 現在のフレーム番号
+let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
 let cfgToggleStates = []; // コンフィグボタンのトグル状態
-let cfgIsPressed = false;
+let cfgIsPressed = false; // コンフィグボタンの押下状態
 let drwToggleStates = []; // drawボタンのトグル状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
-let currentConfig = { bgColor: '#ffffff', colorBlocks: {} }; 
-let globalConfig = null;
+let currentConfig = { bgColor: '#ffffff', colorBlocks: {} }; // 表示中のコンフィグデータ
+let globalConfig = null; // グローバルコンフィグ
 let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
 
-let uploadedImages = []; // アップロードした画像の保持
-let drawImages = []; // マーキング画像の保持
 let processedImages = { pressure: [], log: [], processed: [] }; // 処理後画像の保持
+let uploadedImages = []; // アップロードした画像
+let drawImages = []; // マーキング画像
 
-let cursorMode = 'camera';
-const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' };
+let cursorMode = 'camera'; // 現在のカーソルモード
+const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
+
+const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
+const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
+const fValueRanges = { threshold: [-0.2, 0.2], log: [-2, 2], weight: [-2, 2] };
+let colorEditorMode = 'global';
+let pColorEditorMode = colorEditorMode;
+
+//// HTML要素
+// エディター画面 (中央エリア)
+const editorContent = document.querySelector(".editor-content");
+editorContent.innerHTML = `
+  <h1>編集画面</h1>
+  <p>ここに画像をドラッグ＆ドロップしてください</p>
+  <canvas id="canvas"></canvas>
+  <canvas id="drawCanvas"></canvas>
+  <canvas id="overlayCanvas"></canvas>
+  <canvas id="offscreenCanvas"></canvas>
+`;
+const dropZone = document.getElementById("drop-zone");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const drawCanvas = document.getElementById("drawCanvas");
+const dctx = drawCanvas.getContext('2d', { willReadFrequently: true });
+const overlayCanvas = document.getElementById("overlayCanvas");
+const octx = overlayCanvas.getContext('2d', { willReadFrequently: true });
+const offscreenCanvas = document.getElementById("offscreenCanvas");
+const osctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
+// フレームメニュー (右エリア)
+const menuContent = document.querySelector(".menu-content");
+const previewCanvas = document.getElementById('previewCanvas');
+const pctx = previewCanvas.getContext('2d');
+// カラー編集 (下部エリア)
+const colorEditorTitle = document.getElementById("color-editor-title");
+const bgPicker = document.querySelector('input[type="color"][data-label="bgColorPicker"]');
 
 function changeShowMode(mode) {
   showMode = mode;
-  showImage(frameIndex);
+  showImage(frameIndex, showMode);
 }
 windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => changeShowMode('original'), true, 'rgb(0, 185, 40)');
 windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
@@ -50,9 +84,9 @@ const allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全�
 async function processAllImages(){
   if(showMode === 'original') await changeShowMode('processed');
   for (let i = 0; i < uploadedImages.length; i++) {
-    await showImage(i);
+    await showImage(i, showMode);
   }
-  await showImage(frameIndex);
+  await showImage(frameIndex, showMode);
   showStatus('全画像の処理を実行しました。', 'success', 3000);
 }
 
@@ -240,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`カラーピッカー更新: 背景 = ${currentConfig.bgColor}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex);
+    showImage(frameIndex, showMode);
   });
 
   loadLocalConfig();
@@ -304,11 +338,6 @@ function createColorBlock(initialLabelColor, initialColor) {
   setupColorPickerListeners(block, colorBlockSize);
 }
 
-const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
-const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
-const fValueRanges = { threshold: [-0.2, 0.2], log: [-2, 2], weight: [-2, 2] };
-let colorEditorMode = 'global';
-let pColorEditorMode = colorEditorMode;
 function updateColorBlocks(cfg){ // カラーブロック値を更新
   const colorCfg = cfg ? cfg : globalConfig;
   const sliderCfg = cfg;
@@ -393,7 +422,7 @@ function updateChannel(label, channel, value){
   console.log(`スライダー更新: ${label} ${channel} = ${sliders[channel]}`);
   applyCurrentConfig();
   ++updatePhase;
-  showImage(frameIndex);
+  showImage(frameIndex, showMode);
 }
 
 function onWheelNum(e) {
@@ -424,7 +453,7 @@ function setupColorPickerListeners(container, label) {
     console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].color}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex);
+    showImage(frameIndex, showMode);
   });
   const arrow = picker.nextElementSibling;
   const labelPicker = arrow.nextElementSibling;
@@ -433,7 +462,7 @@ function setupColorPickerListeners(container, label) {
     console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].labelColor}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex);
+    showImage(frameIndex, showMode);
   });
 }
 
@@ -463,37 +492,6 @@ function applyCurrentDrawing(){
     }
   }
 }
-
-//// HTML要素の処理
-const menuContent = document.querySelector(".menu-content");
-const editorContent = document.querySelector(".editor-content");
-editorContent.innerHTML = `
-  <h1>編集画面</h1>
-  <p>ここに画像をドラッグ＆ドロップしてください</p>
-  <canvas id="canvas"></canvas>
-  <canvas id="drawCanvas"></canvas>
-  <canvas id="overlayCanvas"></canvas>
-`;
-const colorEditorTitle = document.getElementById("color-editor-title");
-// コンフィグのドロップゾーン
-const dropZone = document.getElementById("drop-zone");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
-const offscreenCanvas = document.createElement("canvas");
-const osctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
-offscreenCanvas.style.position = 'absolute';
-offscreenCanvas.style.visibility = 'hidden';
-editorContent.appendChild(offscreenCanvas);
-const drawCanvas = document.getElementById("drawCanvas");
-const dctx = drawCanvas.getContext('2d', { willReadFrequently: true });
-const overlayCanvas = document.getElementById("overlayCanvas");
-const octx = overlayCanvas.getContext('2d');
-// ボタンとプレビュー用 canvas を取得
-const buttons = document.querySelectorAll('.preview-btn');
-const previewCanvas = document.getElementById('previewCanvas');
-const pctx = previewCanvas.getContext('2d');
-// 背景カラーピッカー
-const bgPicker = document.querySelector('input[type="color"][data-label="bgColorPicker"]');
 
 menuContent.addEventListener("contextmenu", (event) => {
   event.preventDefault();
@@ -567,7 +565,7 @@ dropZone.addEventListener("drop", (e) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
       fbtn.classList.add('active');
       frameIndex = index;
-      await showImage(index);
+      await showImage(index, showMode);
       // frameIndexのボタンを強調表示
       updateFrmBtns(index);
       drwToggleStates.fill(false);
@@ -582,7 +580,7 @@ dropZone.addEventListener("drop", (e) => {
         frameIndex = index;
         drwToggleStates.fill(false);
         drwToggleStates[index] = true;
-        await showImage(index);
+        await showImage(index, showMode);
         // frameIndexのボタンを強調表示
         updateFrmBtns(index);
         updateDrwBtns();
@@ -725,8 +723,8 @@ dropZone.addEventListener("drop", (e) => {
         overlayCanvas.height = canvas.height;
 
         // Draw ImageData to visible canvas and cache using getImageData as requested
-        ctx.putImageData(imgData, 0, 0);
-        uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        osctx.putImageData(imgData, 0, 0);
+        uploadedImages[index] = osctx.getImageData(0, 0, canvas.width, canvas.height);
 
         initCanvas(ext.toUpperCase(), index, fileInfos.length);
       } catch (err) {
@@ -751,7 +749,7 @@ dropZone.addEventListener("drop", (e) => {
 
 async function initCanvas(extName, index, fileNum){
   if (index === 0) {
-    await showImage(0);
+    await showImage(0, showMode);
     if (drawImages[frameIndex]){
       dctx.putImageData(drawImages[frameIndex], 0, 0);
     } else {
@@ -953,7 +951,7 @@ function fillLassoRegion(mode = 'fill') {
   dctx.restore();
   applyCurrentDrawing();
 
-  showImage(frameIndex);
+  showImage(frameIndex, showMode);
 }
 
 

@@ -388,6 +388,11 @@ button.accent {
   background: rgba(0, 0, 0, 0);
 }
 
+#offscreenCanvas {
+  position:absolute;
+  visibility: hidden;
+}
+
 /* 点滅アニメーション */
 @keyframes blink {
   0%   { filter: brightness(0.9); }
