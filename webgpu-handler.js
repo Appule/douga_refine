@@ -17,14 +17,13 @@ async function initWebGPU() {
 }
 
 // --- 画像処理 ---
-function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
+function preparePipelines(imageData, drawImageData, cfg) {
   const width = imageData.width;
   const height = imageData.height;
   const pixelCount = width * height;
-  const gColBlks = gCfg.colorBlocks;
-  const fColBlks = fCfg ? fCfg.colorBlocks : null;
-  const cbKeys = Object.keys(gCfg.colorBlocks);
-
+  const colBlks = cfg.colorBlocks;
+  const cbKeys = Object.keys(cfg.colorBlocks);
+ 
   const uniSize = Math.ceil((8 * 8 + 4) / 4) * 4;
   const buffers = {
     uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
@@ -50,12 +49,12 @@ function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
   };
   const pixelArray = new Uint32Array(imageData.data.buffer);
   device.queue.writeBuffer(buffers.input, 0, pixelArray);
-
+ 
   if (drawImageData){
     const pixelArray2 = new Uint32Array(drawImageData.data.buffer);
     device.queue.writeBuffer(buffers.drawInput, 0, pixelArray2);
   }
-
+ 
   // width, height は u32、threshold は f32
   makeUniformsCodes();
   const uniformArray = new ArrayBuffer(uniSize * 4);
@@ -64,44 +63,38 @@ function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
   u32View[0] = width;
   u32View[1] = height;
   u32View[2] = cbKeys.length;
-  const bgCol = hexToInt32(fCfg ? fCfg.bgColor : gCfg.bgColor);
+  const bgCol = hexToInt32(cfg.bgColor);
   u32View[3] = bgCol;
-
+ 
   const [firstKey, ...restKeys] = cbKeys;
   const sortedRest = restKeys
     .map(key => {
-      const hex    = fCfg ? fColBlks[key].color : gColBlks[key].color;
+      const hex    = cfg.colorBlocks[key].color;
       const colInt = hexToInt32(hex);
       return { key, hue: hexToHue(colInt) };
     })
     .sort((a, b) => a.hue - b.hue)
     .map(obj => obj.key);
   const sortedKeys = [firstKey, ...sortedRest];
-
+ 
   const base = 4;
   for(let i = 0; i < sortedKeys.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
     const k = sortedKeys[i];
-    const src = fCfg ? fColBlks[k] : gColBlks[k];
-
+    const src = colBlks[k];
+ 
     f32View[i*8 + base + 0] = hexToInt32(src.color);
     f32View[i*8 + base + 1] = hexToInt32(src.labelColor);
-
-    // sliders
-    let t = src.sliders.threshold;
-    let l = src.sliders.log;
-    let w = src.sliders.weight;
-    if (fCfg) {
-      const fsl = fColBlks[k].sliders;
-      t += fsl.threshold;
-      l += fsl.log;
-      w += fsl.weight;
-    }
+ 
+    // sliders (frame config now holds absolute values)
+    const t = src.sliders.threshold;
+    const l = src.sliders.log;
+    const w = src.sliders.weight;
     f32View[i * 8 + base + 2] = t;
     f32View[i * 8 + base + 3] = l;
     f32View[i * 8 + base + 4] = w;
   }
   device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
-
+ 
   const steps = [
     {
       name: 'TracePressure',
@@ -217,7 +210,7 @@ function preparePipelines(imageData, drawImageData, gCfg, fCfg) {
       ]
     },
   ];
-
+ 
   return { buffers, steps, width, height };
 }
 
@@ -231,7 +224,8 @@ async function processImage(idx) {
   showStatus('<div class="loading"><div class="spinner"></div>WebGPUで処理中...</div>');
   try {
 
-    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, globalConfig, frameConfigs[idx]);
+    const cfgToUse = (frameConfigs && frameConfigs[idx]) ? frameConfigs[idx] : globalConfig;
+    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, cfgToUse);
 
     for (const step of steps) {
       const encoder = await runShader(step.code, buffers, step.bindings, width, height);

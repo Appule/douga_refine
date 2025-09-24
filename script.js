@@ -35,7 +35,6 @@ const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値�
 
 const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
 const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
-const fValueRanges = { threshold: [-0.2, 0.2], log: [-2, 2], weight: [-2, 2] };
 let colorEditorMode = 'global';
 let pColorEditorMode = colorEditorMode;
 
@@ -340,13 +339,14 @@ function createColorBlock(initialLabelColor, initialColor) {
 
 function updateColorBlocks(cfg){ // カラーブロック値を更新
   const colorCfg = cfg ? cfg : globalConfig;
-  const sliderCfg = cfg;
+  // If a frame config isn't provided, fall back to the globalConfig so sliders initialize from global values.
+  const sliderCfg = cfg || globalConfig || null;
   const keys = Object.keys(currentConfig.colorBlocks);
   currentConfig.bgColor = colorCfg.bgColor;
   for(let i = 0; i < keys.length; ++i){ // 黒,赤,緑,青,...
     currentConfig.colorBlocks[keys[i]].color = colorCfg.colorBlocks[keys[i]].color;
     currentConfig.colorBlocks[keys[i]].labelColor = colorCfg.colorBlocks[keys[i]].labelColor;
-    currentConfig.colorBlocks[keys[i]].sliders = sliderCfg ? { ...sliderCfg.colorBlocks[keys[i]].sliders } : { ...defaultSliderValue };
+    currentConfig.colorBlocks[keys[i]].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[keys[i]]) ? { ...sliderCfg.colorBlocks[keys[i]].sliders } : { ...defaultSliderValue };
   }
   updateConfig();
   pColorEditorMode = colorEditorMode;
@@ -372,13 +372,8 @@ function updateConfig(){
           currentConfig.colorBlocks[label].sliders[param] = value;
           const slider = document.querySelector(`.color-block[data-label="${label}"] .color-slider[data-channel="${param}"]`);
           const number = slider?.parentElement.querySelector('.slider-value');
-          if (colorEditorMode != pColorEditorMode) {
-            const ranges = colorEditorMode == 'global' ? gValueRanges : fValueRanges;
-            slider.min = ranges[param][0];
-            slider.max = ranges[param][1];
-            number.min = ranges[param][0];
-            number.max = ranges[param][1];
-          }
+          // Slider range switching between global/frame removed.
+          // Sliders use their stored absolute values; ranges remain the global ranges in UI.
           slider.value = value;
           number.value = value;
         }
