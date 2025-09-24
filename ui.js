@@ -11,6 +11,34 @@ function showStatus(message, type = 'info', duration = null) {
   }
 }
 
+// Draw ImageData directly to the visible canvas
+function showImage(imageData) {
+  if (!imageData) return;
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// Update frame buttons' styles and the all-process indicator for the given mode
+function updateFrameButtonsForMode(mode) {
+  let allProcessed = true;
+  for (let j = 0; j < uploadedImages.length; j++) {
+    const proc = processedImages[mode]?.[j];
+    const done = proc?.img && proc?.phase === updatePhase;
+    const btn = frameBtns[j];
+    if (!btn) continue;
+    if (!done) {
+      allProcessed = false;
+      btn.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
+    } else {
+      btn.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
+    }
+  }
+  if (allProcessed) {
+    allProcBtn.classList.remove('blink');
+  } else {
+    allProcBtn.classList.add('blink');
+  }
+}
+
 let topZIndex = 100;
 // --- ParamsWindow Class ---
 class ParamsWindow {

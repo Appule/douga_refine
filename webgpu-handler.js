@@ -283,38 +283,6 @@ async function processImage(idx) {
   }
 }
 
-// 保存されている画像を描画
-async function showImage(i, showMode) {
-  if (!uploadedImages[i]) return;
-
-  if(showMode == 'original'){
-    ctx.putImageData(uploadedImages[i], 0, 0);
-  } else {
-    if(updatePhase != processedImages[showMode][i]?.phase){
-      await processImage(i);
-    }
-    if(processedImages[showMode][i]?.img){
-      ctx.putImageData(processedImages[showMode][i].img, 0, 0);
-    }
-
-    // 全部処理済みかどうかチェック
-    let allProcessed = true;
-    for (let j = 0; j < uploadedImages.length; j++) {
-      if (!processedImages[showMode][j]?.img || updatePhase != processedImages[showMode][j]?.phase) {
-        allProcessed = false;
-        frameBtns[j].fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
-      } else {
-        frameBtns[j].fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
-      }
-    }
-    if(allProcessed){
-      allProcBtn.classList.remove('blink');
-    } else {
-      allProcBtn.classList.add('blink');
-    }
-  }
-}
-
 // ImageData保存
 function cacheProcessedImage(outputArray, width, height) {
   // Uint32Array か Uint8Array かを判別して Uint8ClampedArray に変換

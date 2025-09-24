@@ -69,7 +69,7 @@ const bgPicker = document.querySelector('input[type="color"][data-label="bgColor
 
 function changeShowMode(mode) {
   showMode = mode;
-  showImage(frameIndex, showMode);
+  prepareAndShowImage(frameIndex, showMode);
 }
 windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => changeShowMode('original'), true, 'rgb(0, 185, 40)');
 windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
@@ -84,9 +84,9 @@ const allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全�
 async function processAllImages(){
   if(showMode === 'original') await changeShowMode('processed');
   for (let i = 0; i < uploadedImages.length; i++) {
-    await showImage(i, showMode);
+    await prepareAndShowImage(i, showMode);
   }
-  await showImage(frameIndex, showMode);
+  await prepareAndShowImage(frameIndex, showMode);
   showStatus('全画像の処理を実行しました。', 'success', 3000);
 }
 
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`カラーピッカー更新: 背景 = ${currentConfig.bgColor}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, showMode);
   });
 
   loadLocalConfig();
@@ -422,7 +422,7 @@ function updateChannel(label, channel, value){
   console.log(`スライダー更新: ${label} ${channel} = ${sliders[channel]}`);
   applyCurrentConfig();
   ++updatePhase;
-  showImage(frameIndex, showMode);
+  prepareAndShowImage(frameIndex, showMode);
 }
 
 function onWheelNum(e) {
@@ -453,7 +453,7 @@ function setupColorPickerListeners(container, label) {
     console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].color}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, showMode);
   });
   const arrow = picker.nextElementSibling;
   const labelPicker = arrow.nextElementSibling;
@@ -462,7 +462,7 @@ function setupColorPickerListeners(container, label) {
     console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].labelColor}`);
     applyCurrentConfig();
     ++updatePhase;
-    showImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, showMode);
   });
 }
 
@@ -565,7 +565,7 @@ dropZone.addEventListener("drop", (e) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
       fbtn.classList.add('active');
       frameIndex = index;
-      await showImage(index, showMode);
+      await prepareAndShowImage(index, showMode);
       // frameIndexのボタンを強調表示
       updateFrmBtns(index);
       drwToggleStates.fill(false);
@@ -580,7 +580,7 @@ dropZone.addEventListener("drop", (e) => {
         frameIndex = index;
         drwToggleStates.fill(false);
         drwToggleStates[index] = true;
-        await showImage(index, showMode);
+        await prepareAndShowImage(index, showMode);
         // frameIndexのボタンを強調表示
         updateFrmBtns(index);
         updateDrwBtns();
@@ -749,7 +749,7 @@ dropZone.addEventListener("drop", (e) => {
 
 async function initCanvas(extName, index, fileNum){
   if (index === 0) {
-    await showImage(0, showMode);
+    await prepareAndShowImage(0, showMode);
     if (drawImages[frameIndex]){
       dctx.putImageData(drawImages[frameIndex], 0, 0);
     } else {
@@ -822,6 +822,30 @@ document.addEventListener('mousemove', e => {
   previewCanvas.style.left = (e.pageX - cw - 10) + 'px';
   previewCanvas.style.top  = (e.pageY - ch/2) + 'px';
 });
+
+// Ensure the image for index `i` and mode `showMode` is ready, generate it if needed, then display.
+// This separates decision/process logic from the raw drawing performed by showImage(imageData).
+async function prepareAndShowImage(i, showMode) {
+  if (!uploadedImages[i]) return;
+
+  if (showMode === 'original') {
+    showImage(uploadedImages[i]);
+    return;
+  }
+
+  // If the processed image is out-of-date or missing, generate it.
+  if (updatePhase != processedImages[showMode][i]?.phase) {
+    await processImage(i);
+  }
+
+  const procImg = processedImages[showMode][i]?.img;
+  if (procImg) {
+    showImage(procImg);
+  }
+
+  // Update frame button styles based on completeness for this mode
+  updateFrameButtonsForMode(showMode);
+}
 
 // カメラワーク / 範囲選択処理
 let zoom = 1;
@@ -926,7 +950,7 @@ function drawLassoOverlay() {
 
 function fillLassoRegion(mode = 'fill') {
   if (lassoPoints.length < 3) return;
-
+ 
   // Path2D を使うと便利
   const path = new Path2D();
   path.moveTo(lassoPoints[0].x, lassoPoints[0].y);
@@ -934,7 +958,7 @@ function fillLassoRegion(mode = 'fill') {
     path.lineTo(lassoPoints[i].x, lassoPoints[i].y);
   }
   path.closePath();
-
+ 
   let fillColor;
   if (mode == 'fill') {
     fillColor = cursorMode == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
@@ -943,15 +967,15 @@ function fillLassoRegion(mode = 'fill') {
   } else {
     fillColor = 'rgb(255, 255, 255, 1.0)';
   }
-
+ 
   // drawCanvas に塗りつぶし
   dctx.save();
   dctx.fillStyle = fillColor;
   dctx.fill(path);
   dctx.restore();
   applyCurrentDrawing();
-
-  showImage(frameIndex, showMode);
+ 
+  prepareAndShowImage(frameIndex, showMode);
 }
 
 
