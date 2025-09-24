@@ -1,4 +1,5 @@
-async function loadTIFF(file, index, fileNum) {
+async function loadTIFF(file) {
+  // Return ImageData for a TIFF file (caller will handle canvas drawing / caching)
   const buffer = await file.arrayBuffer();
   const ifds = UTIF.decode(buffer);
   UTIF.decodeImages(buffer, ifds);
@@ -7,16 +8,11 @@ async function loadTIFF(file, index, fileNum) {
   const width = ifds[0].width;
   const height = ifds[0].height;
 
-  canvas.width = width;
-  canvas.height = height;
-  offscreenCanvas.width = canvas.width;
-  offscreenCanvas.height = canvas.height;
-  ctx.putImageData(new ImageData(new Uint8ClampedArray(rgba), width, height), 0, 0);
-  uploadedImages[index] = ctx.getImageData(0, 0, width, height);
-  initCanvas('TIFF', index, fileNum);
+  return new ImageData(new Uint8ClampedArray(rgba), width, height);
 }
 
-async function loadTGA(file, index, fileNum) {
+async function loadTGA(file) {
+  // Parse TGA and return ImageData (caller will handle canvas drawing / caching)
   const buffer = await file.arrayBuffer();
   const view = new DataView(buffer);
 
@@ -30,8 +26,7 @@ async function loadTGA(file, index, fileNum) {
   const descriptor = view.getUint8(17);
 
   if (imageType !== 2 && imageType !== 10) {
-    alert("このTGAは非圧縮RGB(type2)またはRLE圧縮RGB(type10)のみ対応です。");
-    return;
+    throw new Error("Unsupported TGA type (only type2 or type10 supported).");
   }
 
   const offset = 18 + idLength; // IDフィールドを飛ばす
@@ -93,20 +88,36 @@ async function loadTGA(file, index, fileNum) {
     }
   }
 
-  // --- canvasに描画 ---
-  canvas.width = width;
-  canvas.height = height;
-  offscreenCanvas.width = width;
-  offscreenCanvas.height = height;
-  drawCanvas.width = width;
-  drawCanvas.height = height;
-  overlayCanvas.width = width;
-  overlayCanvas.height = height;
-  ctx.putImageData(imageData, 0, 0);
+  return imageData;
+}
 
-  // --- キャッシュ ---
-  uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  initCanvas('TGA', index, fileNum);
+async function loadIMG(file) {
+  // Read as DataURL, draw into an offscreen canvas and return ImageData
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        // Ensure offscreen canvas is available and sized
+        offscreenCanvas.width = width;
+        offscreenCanvas.height = height;
+        osctx.clearRect(0, 0, width, height);
+        osctx.drawImage(img, 0, 0, width, height);
+        try {
+          const imageData = osctx.getImageData(0, 0, width, height);
+          resolve(imageData);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // Canvas ImageData → TIFF Blob

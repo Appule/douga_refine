@@ -701,30 +701,39 @@ dropZone.addEventListener("drop", (e) => {
     menuContent.appendChild(row);
 
     const ext = info.file.name.split('.').pop().toLowerCase();
-    if (ext === 'tga') {
-      loadTGA(info.file, index, fileInfos.length);
-    } else if (ext === 'tif' || ext === 'tiff') {
-      loadTIFF(info.file, index, fileInfos.length);
-    } else {
-      // 既存処理 (PNG/JPGなどブラウザ対応画像)
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target.result;
-        img.onload = async () => {
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          console.log(`Width: ${canvas.width}, Height: ${canvas.height}`);
 
-          offscreenCanvas.width = canvas.width;
-          offscreenCanvas.height = canvas.height;
-          ctx.drawImage(img, 0, 0);
-          uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          initCanvas('', index, fileNum);
-        };
-      };
-      reader.readAsDataURL(info.file);
-    }
+    // Unified loader: obtain ImageData from file (TGA/TIFF/other) then draw to canvas & cache
+    (async () => {
+      try {
+        let imgData;
+        if (ext === 'tga') {
+          imgData = await loadTGA(info.file);
+        } else if (ext === 'tif' || ext === 'tiff') {
+          imgData = await loadTIFF(info.file);
+        } else {
+          imgData = await loadIMG(info.file);
+        }
+
+        // Ensure canvases match image size before drawing
+        canvas.width = imgData.width;
+        canvas.height = imgData.height;
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+        drawCanvas.width = canvas.width;
+        drawCanvas.height = canvas.height;
+        overlayCanvas.width = canvas.width;
+        overlayCanvas.height = canvas.height;
+
+        // Draw ImageData to visible canvas and cache using getImageData as requested
+        ctx.putImageData(imgData, 0, 0);
+        uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        initCanvas(ext.toUpperCase(), index, fileInfos.length);
+      } catch (err) {
+        console.error('Error loading image file:', err);
+        showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
+      }
+    })();
   });
   ++updatePhase;
   updateFrmBtns(0);
