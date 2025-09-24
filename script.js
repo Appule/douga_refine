@@ -750,7 +750,6 @@ dropZone.addEventListener("drop", (e) => {
 });
 
 async function initCanvas(extName, index, fileNum){
-
   if (index === 0) {
     await showImage(0);
     if (drawImages[frameIndex]){
