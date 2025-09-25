@@ -17,8 +17,8 @@ function makeUniformsCodes(){
     struct Uniforms {
       width: u32,
       height: u32,
-      colorNum: u32,
       whiteCol: u32,
+      whiteLabelCol: u32,
       params: array<ColorUniform, 8>,
     }
   `;
@@ -56,7 +56,8 @@ const tracePressShaderCode = /* glsl */`
     let pixelIn = imageIn[u32(index)];
     let xyz = int2xyz(pixelIn);
 
-    let idx = decideIndexByFacesAndWeights(bgPos, samplePallet, u32(uniforms.colorNum), weights, xyz);
+    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
+    let idx = decideIndexByFacesAndWeights(bgPos, samplePallet, colorNum, weights, xyz);
 
     // 白か色かの判定
     let res = classifyWithThreshold(
@@ -672,13 +673,20 @@ const colorIndexToColorShaderCode = /* glsl */`
     var idPallet: array<vec3f, 9>;
     for (var i: u32 = 0u; i < 8u; i = i + 1u) {
       let pix = u32(uniforms.params[i].labelCol);
-      var r = f32((pix >> 0u) & 0xFFu);
-      var g = f32((pix >> 8u) & 0xFFu);
-      var b = f32((pix >> 16u) & 0xFFu);
+      let r = f32((pix >> 0u) & 0xFFu);
+      let g = f32((pix >> 8u) & 0xFFu);
+      let b = f32((pix >> 16u) & 0xFFu);
       idPallet[i] = vec3f(r, g, b);
     }
-    idPallet[8] = vec3f(255.,255.,255.);
-
+    // bg
+    {
+      let pix = u32(uniforms.whiteLabelCol);
+      let r = f32((pix >> 0u) & 0xFFu);
+      let g = f32((pix >> 8u) & 0xFFu);
+      let b = f32((pix >> 16u) & 0xFFu);
+      idPallet[8] = vec3f(r, g, b);
+    }
+    
     if (global_id.x >= width || global_id.y >= height) {
       return;
     }

@@ -62,10 +62,11 @@ function preparePipelines(imageData, drawImageData, cfg) {
   const f32View = new Float32Array(uniformArray);
   u32View[0] = width;
   u32View[1] = height;
-  u32View[2] = cbKeys.length;
-  const bgCol = hexToInt32(cfg.bgColor);
-  u32View[3] = bgCol;
- 
+  const bgCol = hexToInt32(cfg.bgColor + `0${cbKeys.length}`);
+  const bgLCol = hexToInt32(cfg.bgLabelColor);
+  u32View[2] = bgCol;
+  u32View[3] = bgLCol;
+
   const [firstKey, ...restKeys] = cbKeys;
   const sortedRest = restKeys
     .map(key => {

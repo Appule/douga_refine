@@ -20,7 +20,7 @@ let cfgToggleStates = []; // コンフィグボタンのトグル状態
 let cfgIsPressed = false; // コンフィグボタンの押下状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
-let currentConfig = { bgColor: '#ffffff', colorBlocks: {} }; // 表示中のコンフィグデータ
+let currentConfig = { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }; // 表示中のコンフィグデータ
 let globalConfig = null; // グローバルコンフィグ
 let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
@@ -63,7 +63,8 @@ const previewCanvas = document.getElementById('previewCanvas');
 const pctx = previewCanvas.getContext('2d');
 // カラー編集 (下部エリア)
 const colorEditorTitle = document.getElementById("color-editor-title");
-const bgPicker = document.querySelector('input[type="color"][data-label="bgColorPicker"]');
+let bgPicker = null;
+let bgLabelPicker = null;
 
 function changeShowMode(mode) {
   showMode = mode;
@@ -148,9 +149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const parsed = JSON.parse(e.target.result);
         // Reset and render color blocks from the loaded config (rebuild DOM & currentConfig)
         renderColorBlocksFromConfig(parsed);
-        applyCurrentConfig();
         updateConfig();
         ++updatePhase;
+        prepareAndShowImage(frameIndex, showMode);
         localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
         showStatus('Configファイルの読み込みが完了しました。', 'success', 3000);
       } catch (error) {
@@ -263,16 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.cursor = 'default';
     document.body.style.userSelect = '';
   });
-  
-  // Default color blocks are no longer created unconditionally here.
-  // Default blocks will be created only when local config load fails.
-  bgPicker.addEventListener('input', () => {
-    currentConfig.bgColor = bgPicker.value;
-    console.log(`カラーピッカー更新: 背景 = ${currentConfig.bgColor}`);
-    applyCurrentConfig();
-    ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
-  });
 
   // Load local config. If none exists, create default color blocks.
   loadLocalConfig();
@@ -358,8 +349,57 @@ function createColorBlock(initialLabelColor, initialColor) {
   }
 }
 
-/* Render color blocks from a config object (resets DOM and currentConfig).
-   This fully rebuilds the .color-content area (preserving the background picker block). */
+/* Create the background picker block and wire its listeners.
+   The bg block provides both a color and a labelColor (styled like colorBlock pickers). */
+function createBgBlock(initialBgColor = '#ffffff', initialLabelColor = '#000000') {
+  const container = document.querySelector('.color-content');
+
+  // Remove any existing bg-block if present
+  const existing = container.querySelector('.bg-block');
+  if (existing) existing.remove();
+
+  const html = `
+    <div class="bg-block" style="background:#ffffff; display:flex; justify-content:center; align-items:center; height:80px; padding:20px; margin-right:4px;">
+      <span style="margin-right:8px;">背景</span>
+      <div class="picker-stack">
+        <input type="color" class="color-picker bg-color-picker" value="${initialBgColor}" data-label="bgColorPicker" />
+        <span class="picker-arrow">▼</span>
+        <input type="color" class="color-picker label-picker bg-label-picker" value="${initialLabelColor}" />
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('afterbegin', html);
+
+  // wire references and listeners
+  bgPicker = container.querySelector('.bg-color-picker');
+  bgLabelPicker = container.querySelector('.bg-label-picker');
+
+  // Initialize currentConfig properties if missing
+  if (!currentConfig) currentConfig = { bgColor: initialBgColor, bgLabelColor: initialLabelColor, colorBlocks: {} };
+  if (currentConfig.bgColor === undefined) currentConfig.bgColor = initialBgColor;
+  if (currentConfig.bgLabelColor === undefined) currentConfig.bgLabelColor = initialLabelColor;
+
+  if (bgPicker) {
+    bgPicker.value = currentConfig.bgColor;
+    bgPicker.addEventListener('input', () => {
+      currentConfig.bgColor = bgPicker.value;
+      applyCurrentConfig();
+      ++updatePhase;
+      prepareAndShowImage(frameIndex, showMode);
+    });
+  }
+  if (bgLabelPicker) {
+    bgLabelPicker.value = currentConfig.bgLabelColor || initialLabelColor;
+    bgLabelPicker.addEventListener('input', () => {
+      currentConfig.bgLabelColor = bgLabelPicker.value;
+      applyCurrentConfig();
+      ++updatePhase;
+      prepareAndShowImage(frameIndex, showMode);
+    });
+  }
+}
+
+/* Render color blocks from a config object (resets DOM and currentConfig). */
 function renderColorBlocksFromConfig(cfg) {
   if (!cfg) return;
   // Clone to avoid mutation
@@ -367,10 +407,12 @@ function renderColorBlocksFromConfig(cfg) {
   globalConfig = JSON.parse(JSON.stringify(cfg));
 
   const container = document.querySelector('.color-content');
-  // Preserve the background picker container if present
-  const bgInput = container.querySelector('input[data-label="bgColorPicker"]');
-  const bgHtml = bgInput ? bgInput.closest('div').outerHTML : '';
-  container.innerHTML = bgHtml;
+  container.innerHTML = ''; // clear everything; we'll create bg + blocks from JS
+
+  // Create bg block (cfg may include bgLabelColor)
+  const bgColor = cfg.bgColor || '#ffffff';
+  const bgLabelColor = cfg.bgLabelColor || cfg.bgLabel || '#000000';
+  createBgBlock(bgColor, bgLabelColor);
 
   // Recreate blocks in order
   const entries = Object.entries(cfg.colorBlocks || {}).sort((a,b) => Number(a[0]) - Number(b[0]));
@@ -385,6 +427,26 @@ function renderColorBlocksFromConfig(cfg) {
     }
   });
 
+  updateConfig();
+}
+
+/* Create 4 default color blocks (used when no local config present) */
+function createDefaultColorBlocks() {
+  currentConfig = { bgColor: '#ffffff', bgLabelColor: '#000000', colorBlocks: {} };
+  const container = document.querySelector('.color-content');
+  container.innerHTML = ''; // wipe
+
+  // Create bg block first
+  createBgBlock(currentConfig.bgColor, currentConfig.bgLabelColor);
+
+  const defaults = [
+    { labelColor:'#000000', color:'#000000' },
+    { labelColor:'#ff0000', color:'#ff0000' },
+    { labelColor:'#00ff00', color:'#00ff00' },
+    { labelColor:'#0000ff', color:'#0000ff' },
+  ];
+
+  defaults.forEach(d => createColorBlock(d.labelColor, d.color));
   updateConfig();
 }
 
@@ -405,7 +467,6 @@ function createDefaultColorBlocks() {
 
   defaults.forEach(d => createColorBlock(d.labelColor, d.color));
   updateConfig();
-  applyCurrentConfig();
 }
 
 /* Delete a color block by its numeric label index, then reindex and re-render */
@@ -459,9 +520,14 @@ function updateColorBlocks(cfg){ // カラーブロック値を更新
 
 // currentConfig に表示中の値を代入 bgColor, colorBlks{col, lcol, sliders{...}}
 function updateConfig(){
+  // update bg pickers if present
   if (currentConfig.bgColor) {
     if (bgPicker) bgPicker.value = currentConfig.bgColor;
   }
+  if (currentConfig.bgLabelColor !== undefined) {
+    if (bgLabelPicker) bgLabelPicker.value = currentConfig.bgLabelColor;
+  }
+
   if (currentConfig.colorBlocks) {
     for (const [label, colorBlock] of Object.entries(currentConfig.colorBlocks)) {
       currentConfig.colorBlocks[label].color = colorBlock.color;
@@ -470,7 +536,7 @@ function updateConfig(){
       
       currentConfig.colorBlocks[label].labelColor = colorBlock.labelColor;
       const arrow = picker.nextElementSibling;
-      const labelPicker = arrow.nextElementSibling;
+      const labelPicker = arrow ? arrow.nextElementSibling : null;
       if (labelPicker) labelPicker.value = colorBlock.labelColor;
       if (colorBlock.sliders) {
         for (const [param, value] of Object.entries(colorBlock.sliders)) { // param ... th, log, wei | value ... 0.5, 0, 1.0
@@ -479,12 +545,13 @@ function updateConfig(){
           const number = slider?.parentElement.querySelector('.slider-value');
           // Slider range switching between global/frame removed.
           // Sliders use their stored absolute values; ranges remain the global ranges in UI.
-          slider.value = value;
-          number.value = value;
+          if (slider) slider.value = value;
+          if (number) number.value = value;
         }
       }
     }
   }
+  applyCurrentConfig();
 }
 
 // スライダーの処理

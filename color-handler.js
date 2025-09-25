@@ -1,7 +1,7 @@
 function hexToInt32(hex) {
   // 先頭の#を除去
   let h = hex.replace(/^#/, '');
-  let r, g, b, a = 0xFF;
+  let r, g, b, a = 0x00;
 
   if (h.length === 3) {
     // '#RGB' → 'R','G','B' を複製
@@ -23,7 +23,7 @@ function hexToInt32(hex) {
   return ((r & 0xFF))  | 
          ((g & 0xFF) << 8)  | 
          ((b & 0xFF) << 16) | 
-         ((a & 0x00) << 24);
+         ((a & 0xFF) << 24);
 }
 
 function hexToHue(colInt32) {
