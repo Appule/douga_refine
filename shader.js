@@ -522,7 +522,7 @@ const denoise3x3ShaderCode = /* glsl */`
     let colId = (pixel >> 0u) & 0xFFu; // 下位8ビットに色IDが入っている
 
     // dirsの方向をチェックして、同じ色がなければ最も多い隣接色に置き換え
-    var counts = array<u32, 5>(0u, 0u, 0u, 0u, 0u); // 黒, 赤, 緑, 青, 白
+    var counts: array<u32, 9>;
     for (var i = 0; i < 8; i++) {
       let dx = dirs[i].x;
       let dy = dirs[i].y;
@@ -541,7 +541,8 @@ const denoise3x3ShaderCode = /* glsl */`
     }
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
-    for (var i: u32 = 0u; i < 5u; i++) {
+    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
+    for (var i: u32 = 0u; i < colorNum+1; i++) {
       if (counts[i] > maxCount) {
         maxCount = counts[i];
         maxIdx = i;
@@ -622,7 +623,7 @@ const denoise5x5ShaderCode = /* glsl */`
     }
 
     // --- Step3: 5x5 多数決 ---
-    var counts = array<u32, 5>(0u, 0u, 0u, 0u, 0u);
+    var counts: array<u32, 9>;
     for (var dy = -2; dy <= 2; dy++) {
       for (var dx = -2; dx <= 2; dx++) {
         let sx = clamp(x + dx, 0, w - 1);
@@ -635,7 +636,8 @@ const denoise5x5ShaderCode = /* glsl */`
 
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
-    for (var i: u32 = 1u; i < 5u; i++) {
+    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
+    for (var i: u32 = 1u; i < colorNum+1; i++) {
       if (counts[i] > maxCount) {
         maxCount = counts[i];
         maxIdx = i;

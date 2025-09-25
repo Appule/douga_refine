@@ -284,7 +284,10 @@ function createColorBlock(initialLabelColor, initialColor) {
   // Keep block relatively positioned so delete button can be placed in top-right.
   let html = `
     <div class="color-block" data-label="${colorBlockSize}" style="position:relative;">
-      <button class="color-delete" title="削除" style="position:absolute; right:6px; top:6px; width:20px; height:20px; line-height:16px; padding:0; border-radius:3px;">×</button>
+      <!-- Top-right: enable/disable checkbox -->
+      <input type="checkbox" class="color-enable" title="有効/無効" style="position:absolute; right:4px; top:4px; width:20px; height:20px;" checked />
+      <!-- Left-bottom: delete button (moved here) with red background -->
+      <button class="color-delete" title="削除" style="position:absolute; right:6px; bottom:6px; width:20px; height:20px; line-height:16px; padding:0; border-radius:3px; background:red; color:white; border:none;">×</button>
       <div class="color-control-group">
         <div class="picker-stack">
           <input type="color" class="color-picker" value="${initialColor}" data-label="${colorBlockSize}" />
@@ -331,20 +334,37 @@ function createColorBlock(initialLabelColor, initialColor) {
 
   // initialize config entry for this block
   const sliders = { threshold: 0.5, log: 0, weight: 1 };
-  currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders };
+  // add enabled flag default true so checkbox state is tracked
+  currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders, enabled: true };
   applyCurrentConfig();
-
+  
   // bind events
   const block = container.querySelector(`.color-block[data-label="${colorBlockSize}"]`);
   setupSliderListeners(block, colorBlockSize);
   setupColorPickerListeners(block, colorBlockSize);
 
-  // delete button
+  // delete button (confirm before deletion)
   const delBtn = block.querySelector('.color-delete');
   if (delBtn) {
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      deleteColorBlock(colorBlockSize);
+      const ok = window.confirm("本当にこの色を削除しますか？");
+      if (ok) {
+        deleteColorBlock(colorBlockSize);
+      }
+    });
+  }
+  
+  // enable/disable checkbox listener
+  const enableCheckbox = block.querySelector('.color-enable');
+  if (enableCheckbox) {
+    // initialize checked state from config (safeguard)
+    enableCheckbox.checked = currentConfig.colorBlocks[colorBlockSize].enabled !== false;
+    enableCheckbox.addEventListener('change', () => {
+      currentConfig.colorBlocks[colorBlockSize].enabled = enableCheckbox.checked;
+      applyCurrentConfig();
+      ++updatePhase;
+      prepareAndShowImage(frameIndex, showMode);
     });
   }
 }
@@ -548,6 +568,14 @@ function updateConfig(){
           if (slider) slider.value = value;
           if (number) number.value = value;
         }
+      }
+      // Sync enabled checkbox state if present
+      const enableCheckbox = document.querySelector(`.color-block[data-label="${label}"] .color-enable`);
+      if (enableCheckbox) {
+        // default to true unless explicitly false in cfg
+        enableCheckbox.checked = (colorBlock.enabled === undefined) ? true : !!colorBlock.enabled;
+        // ensure config has the enabled flag present
+        currentConfig.colorBlocks[label].enabled = enableCheckbox.checked;
       }
     }
   }

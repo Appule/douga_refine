@@ -82,10 +82,12 @@ function preparePipelines(imageData, drawImageData, cfg) {
   for(let i = 0; i < sortedKeys.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
     const k = sortedKeys[i];
     const src = colBlks[k];
- 
+  
     f32View[i*8 + base + 0] = hexToInt32(src.color);
-    f32View[i*8 + base + 1] = hexToInt32(src.labelColor);
- 
+    // If the color block is disabled (enabled === false), use the background label color
+    const labelInt = (src.enabled === false) ? bgLCol : hexToInt32(src.labelColor);
+    f32View[i*8 + base + 1] = labelInt;
+  
     // sliders (frame config now holds absolute values)
     const t = src.sliders.threshold;
     const l = src.sliders.log;
