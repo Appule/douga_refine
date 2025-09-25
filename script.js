@@ -145,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        currentConfig = JSON.parse(e.target.result);
+        const parsed = JSON.parse(e.target.result);
+        // Reset and render color blocks from the loaded config (rebuild DOM & currentConfig)
+        renderColorBlocksFromConfig(parsed);
         applyCurrentConfig();
         updateConfig();
         ++updatePhase;
@@ -262,11 +264,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.userSelect = '';
   });
   
-  createColorBlock('#000000', '#000000');
-  createColorBlock('#ff0000', '#ff0000');
-  createColorBlock('#00ff00', '#00ff00');
-  createColorBlock('#0000ff', '#0000ff');
-  
+  // Default color blocks are no longer created unconditionally here.
+  // Default blocks will be created only when local config load fails.
   bgPicker.addEventListener('input', () => {
     currentConfig.bgColor = bgPicker.value;
     console.log(`カラーピッカー更新: 背景 = ${currentConfig.bgColor}`);
@@ -275,17 +274,26 @@ document.addEventListener('DOMContentLoaded', () => {
     prepareAndShowImage(frameIndex, showMode);
   });
 
+  // Load local config. If none exists, create default color blocks.
   loadLocalConfig();
+  if (!currentConfig.colorBlocks || Object.keys(currentConfig.colorBlocks).length === 0) {
+    createDefaultColorBlocks();
+  } else {
+    // Ensure DOM reflects the loaded config
+    renderColorBlocksFromConfig(currentConfig);
+  }
 });
 
-// 新しいカラーブロック要素を作成
+// 新しいカラーブロック要素を作成（削除ボタン付き）
 function createColorBlock(initialLabelColor, initialColor) {
   const colorBlockSize = Object.keys(currentConfig.colorBlocks).length;
   const container = document.querySelector('.color-content');
-  if(colorBlockSize != 0 && container.lastElementChild.id == 'addColorBtn') container.lastElementChild.remove();
+  if (colorBlockSize != 0 && container.lastElementChild && container.lastElementChild.id == 'addColorBtn') container.lastElementChild.remove();
 
+  // Keep block relatively positioned so delete button can be placed in top-right.
   let html = `
-    <div class="color-block" data-label="${colorBlockSize}">
+    <div class="color-block" data-label="${colorBlockSize}" style="position:relative;">
+      <button class="color-delete" title="削除" style="position:absolute; right:6px; top:6px; width:20px; height:20px; line-height:16px; padding:0; border-radius:3px;">×</button>
       <div class="color-control-group">
         <div class="picker-stack">
           <input type="color" class="color-picker" value="${initialColor}" data-label="${colorBlockSize}" />
@@ -322,30 +330,128 @@ function createColorBlock(initialLabelColor, initialColor) {
 
   container.insertAdjacentHTML('beforeend', html);
 
-  container.lastElementChild.addEventListener('click', () => {
-    createColorBlock('#000000', '#000000');
-  });
+  // add button (if present) will be last element - ensure it creates a new color block
+  const last = container.lastElementChild;
+  if (last && last.id === 'addColorBtn') {
+    last.addEventListener('click', () => {
+      createColorBlock('#000000', '#000000');
+    });
+  }
 
-  const sliders = { threshold: 0.5, log:0, weight:1 };
+  // initialize config entry for this block
+  const sliders = { threshold: 0.5, log: 0, weight: 1 };
   currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders };
   applyCurrentConfig();
 
-  // イベントをバインド
+  // bind events
   const block = container.querySelector(`.color-block[data-label="${colorBlockSize}"]`);
   setupSliderListeners(block, colorBlockSize);
   setupColorPickerListeners(block, colorBlockSize);
+
+  // delete button
+  const delBtn = block.querySelector('.color-delete');
+  if (delBtn) {
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteColorBlock(colorBlockSize);
+    });
+  }
 }
 
+/* Render color blocks from a config object (resets DOM and currentConfig).
+   This fully rebuilds the .color-content area (preserving the background picker block). */
+function renderColorBlocksFromConfig(cfg) {
+  if (!cfg) return;
+  // Clone to avoid mutation
+  currentConfig = JSON.parse(JSON.stringify(cfg));
+  globalConfig = JSON.parse(JSON.stringify(cfg));
+
+  const container = document.querySelector('.color-content');
+  // Preserve the background picker container if present
+  const bgInput = container.querySelector('input[data-label="bgColorPicker"]');
+  const bgHtml = bgInput ? bgInput.closest('div').outerHTML : '';
+  container.innerHTML = bgHtml;
+
+  // Recreate blocks in order
+  const entries = Object.entries(cfg.colorBlocks || {}).sort((a,b) => Number(a[0]) - Number(b[0]));
+  currentConfig.colorBlocks = {};
+  entries.forEach(([k, v]) => {
+    const labelColor = v.labelColor || v.color || '#000000';
+    const color = v.color || '#000000';
+    createColorBlock(labelColor, color);
+    const idx = Object.keys(currentConfig.colorBlocks).length - 1;
+    if (v.sliders) {
+      currentConfig.colorBlocks[idx].sliders = { ...defaultSliderValue, ...v.sliders };
+    }
+  });
+
+  updateConfig();
+}
+
+/* Create 4 default color blocks (used when no local config present) */
+function createDefaultColorBlocks() {
+  currentConfig.colorBlocks = {};
+  const container = document.querySelector('.color-content');
+  const bgInput = container.querySelector('input[data-label="bgColorPicker"]');
+  const bgHtml = bgInput ? bgInput.closest('div').outerHTML : '';
+  container.innerHTML = bgHtml;
+
+  const defaults = [
+    { labelColor:'#000000', color:'#000000' },
+    { labelColor:'#ff0000', color:'#ff0000' },
+    { labelColor:'#00ff00', color:'#00ff00' },
+    { labelColor:'#0000ff', color:'#0000ff' },
+  ];
+
+  defaults.forEach(d => createColorBlock(d.labelColor, d.color));
+  updateConfig();
+  applyCurrentConfig();
+}
+
+/* Delete a color block by its numeric label index, then reindex and re-render */
+function deleteColorBlock(labelIndex) {
+  const container = document.querySelector('.color-content');
+  const toRemove = container.querySelector(`.color-block[data-label="${labelIndex}"]`);
+  if (!toRemove) return;
+
+  // Build new colorBlocks from remaining DOM blocks (preserve order)
+  const remaining = Array.from(container.querySelectorAll('.color-block')).filter(b => b !== toRemove);
+  const newBlocks = {};
+  remaining.forEach((b, i) => {
+    const color = b.querySelector('.color-picker')?.value || '#000000';
+    const labelColor = b.querySelector('.label-picker')?.value || color;
+    const sliders = {
+      threshold: parseFloat(b.querySelector('.color-slider[data-channel="threshold"]')?.value) || defaultSliderValue.threshold,
+      log: parseFloat(b.querySelector('.color-slider[data-channel="log"]')?.value) || defaultSliderValue.log,
+      weight: parseFloat(b.querySelector('.color-slider[data-channel="weight"]')?.value) || defaultSliderValue.weight,
+    };
+    newBlocks[i] = { color, labelColor, sliders };
+  });
+
+  // Replace currentConfig and re-render
+  currentConfig.colorBlocks = newBlocks;
+  renderColorBlocksFromConfig(currentConfig);
+  applyCurrentConfig();
+  ++updatePhase;
+  prepareAndShowImage(frameIndex, showMode);
+}
+
+/* Update existing color blocks from a cfg (used when switching between global/frame modes) */
 function updateColorBlocks(cfg){ // カラーブロック値を更新
   const colorCfg = cfg ? cfg : globalConfig;
+  if (!colorCfg) return;
   // If a frame config isn't provided, fall back to the globalConfig so sliders initialize from global values.
   const sliderCfg = cfg || globalConfig || null;
   const keys = Object.keys(currentConfig.colorBlocks);
   currentConfig.bgColor = colorCfg.bgColor;
   for(let i = 0; i < keys.length; ++i){ // 黒,赤,緑,青,...
-    currentConfig.colorBlocks[keys[i]].color = colorCfg.colorBlocks[keys[i]].color;
-    currentConfig.colorBlocks[keys[i]].labelColor = colorCfg.colorBlocks[keys[i]].labelColor;
-    currentConfig.colorBlocks[keys[i]].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[keys[i]]) ? { ...sliderCfg.colorBlocks[keys[i]].sliders } : { ...defaultSliderValue };
+    const key = keys[i];
+    const src = (colorCfg.colorBlocks && colorCfg.colorBlocks[key]) ? colorCfg.colorBlocks[key] : null;
+    if (src) {
+      currentConfig.colorBlocks[key].color = src.color;
+      currentConfig.colorBlocks[key].labelColor = src.labelColor;
+      currentConfig.colorBlocks[key].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[key]) ? { ...sliderCfg.colorBlocks[key].sliders } : { ...defaultSliderValue };
+    }
   }
   updateConfig();
   pColorEditorMode = colorEditorMode;
