@@ -18,7 +18,6 @@ let frameIndex = 0; // 現在のフレーム番号
 let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
 let cfgToggleStates = []; // コンフィグボタンのトグル状態
 let cfgIsPressed = false; // コンフィグボタンの押下状態
-let drwToggleStates = []; // drawボタンのトグル状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
 let currentConfig = { bgColor: '#ffffff', colorBlocks: {} }; // 表示中のコンフィグデータ
@@ -476,16 +475,9 @@ function applyCurrentConfig(){ // currentConfig を globalConfig/frameConfigs �
 }
 
 function applyCurrentDrawing(){
-  const drw = dctx.getImageData(0, 0, canvas.width, canvas.height);
-  if(drwToggleStates.some(Boolean)){
-    for(let i = 0; i < drwToggleStates.length; ++i){
-      if(drwToggleStates[i]) {
-        drawImages[i] = drw;
-        frameBtns[i].dbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
-        if(processedImages[showMode]?.[i]) processedImages[showMode][i].phase -= 1;
-      }
-    }
-  }
+  drawImages[frameIndex] = dctx.getImageData(0, 0, canvas.width, canvas.height);
+  frameBtns[frameIndex].dbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+  if(processedImages[showMode]?.[frameIndex]) processedImages[showMode][frameIndex].phase -= 1;
 }
 
 menuContent.addEventListener("contextmenu", (event) => {
@@ -541,7 +533,6 @@ dropZone.addEventListener("drop", (e) => {
   frameBtns.length = 0;
   frameIndex = 0;
   cfgToggleStates.length = 0;
-  drwToggleStates.length = 0;
   frameConfigs.length = 0;
   uploadedImages = new Array(fileInfos.length);
   drawImages = new Array(fileInfos.length);
@@ -563,22 +554,14 @@ dropZone.addEventListener("drop", (e) => {
       await prepareAndShowImage(index, showMode);
       // frameIndexのボタンを強調表示
       updateFrmBtns(index);
-      drwToggleStates.fill(false);
-      for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
-        drwToggleStates[i] = true;
-      }
-      updateDrwBtns();
     });
     fbtn.addEventListener("mouseenter", async () => {
       if(buttonIsPressed) {
         fbtn.classList.add('active');
         frameIndex = index;
-        drwToggleStates.fill(false);
-        drwToggleStates[index] = true;
         await prepareAndShowImage(index, showMode);
         // frameIndexのボタンを強調表示
         updateFrmBtns(index);
-        updateDrwBtns();
         if(cfgIsPressed){
           cfgToggleStates.fill(false);
           for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
@@ -609,36 +592,16 @@ dropZone.addEventListener("drop", (e) => {
 
     // drawingボタン 'rgba(230, 129, 71, 1)'
     const dbtn = document.createElement("button");
-    drwToggleStates[index] = index == 0;
     dbtn.classList.add("draw-btn");
     dbtn.innerHTML = '';
     dbtn.addEventListener("mousedown", (event) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
       dbtn.classList.add('active');
-      if(event.shiftKey) {
-        drwToggleStates.fill(false);
-        for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
-          drwToggleStates[i] = true;
-        }
-      }
-      else if(event.ctrlKey) {
-        drwToggleStates[index] = !drwToggleStates[index];
-        frameIndex = index;
-      }
-      else {
-        drwToggleStates.fill(false);
-        drwToggleStates[index] = true;
-        frameIndex = index;
-      }
-      updateDrwBtns();
+      frameIndex = index;
     });
     dbtn.addEventListener("mouseenter", (event) => {
       if(buttonIsPressed) {
-        if(!event.ctrlKey) drwToggleStates.fill(false);
-        for(let i = Math.min(index, frameIndex); i <= Math.max(index, frameIndex); i++){
-          drwToggleStates[i] = true;
-        }
-        updateDrwBtns();
+        frameIndex = index;
       }
     });
     dbtn.addEventListener('mouseup', () => {
@@ -710,16 +673,27 @@ dropZone.addEventListener("drop", (e) => {
         // Ensure canvases match image size before drawing
         canvas.width = imgData.width;
         canvas.height = imgData.height;
+        // Ensure the on-screen (layout) size equals the logical pixel size at 1x zoom.
+        // This makes "1倍" correspond to 1:1 on the screen.
+        canvas.style.width = canvas.width + 'px';
+        canvas.style.height = canvas.height + 'px';
+
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
+
         drawCanvas.width = canvas.width;
         drawCanvas.height = canvas.height;
+        drawCanvas.style.width = canvas.width + 'px';
+        drawCanvas.style.height = canvas.height + 'px';
+
         overlayCanvas.width = canvas.width;
         overlayCanvas.height = canvas.height;
+        overlayCanvas.style.width = canvas.width + 'px';
+        overlayCanvas.style.height = canvas.height + 'px';
 
         // Draw ImageData to visible canvas and cache using getImageData as requested
-        osctx.putImageData(imgData, 0, 0);
-        uploadedImages[index] = osctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.putImageData(imgData, 0, 0);
+        uploadedImages[index] = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
         initCanvas(ext.toUpperCase(), index, fileInfos.length);
       } catch (err) {
@@ -730,7 +704,6 @@ dropZone.addEventListener("drop", (e) => {
   });
   ++updatePhase;
   updateFrmBtns(0);
-  updateDrwBtns();
 
   // 最初の文言を削除
   const h1 = editorContent.querySelector('h1');
@@ -744,6 +717,14 @@ dropZone.addEventListener("drop", (e) => {
 
 async function initCanvas(extName, index, fileNum){
   if (index === 0) {
+    // Reset transform so 1x shows at 1:1 pixel size on screen
+    offsetX = 0;
+    offsetY = 0;
+    // Use discrete zoom level of 1 (must exist in zoomLevels)
+    if (!zoomLevels.includes(1)) {
+      zoomLevels.splice(1, 0, 1); // ensure 1 is present near start (safe guard)
+    }
+    setZoom(1);
     await prepareAndShowImage(0, showMode);
     if (drawImages[frameIndex]){
       dctx.putImageData(drawImages[frameIndex], 0, 0);
@@ -759,8 +740,14 @@ async function initCanvas(extName, index, fileNum){
 // フレームボタンの更新
 function updateFrmBtns(index){
   frameBtns.forEach((b, i) => {
-    if (i === index) b.fbtn.classList.add('accent');
-    else b.fbtn.classList.remove('accent');
+    if (i === index) {
+      b.fbtn.classList.add('accent');
+      b.dbtn.classList.add('accent');
+    }
+    else {
+      b.fbtn.classList.remove('accent');
+      b.dbtn.classList.remove('accent');
+    }
   });
 }
 // コンフィグボタンの更新
@@ -785,22 +772,6 @@ function updateCfgBtns(){
     updateColorBlocks(frameConfigs[frameCfgIndex]);
   }
 }
-// 描画編集ボタンの更新
-function updateDrwBtns(){
-  let noActive = true;
-  frameBtns.forEach((b, i) => {
-    if (drwToggleStates[i]) {
-      b.dbtn.classList.add('accent');
-      noActive = false;
-    }
-    else {
-      b.dbtn.classList.remove('accent');
-    }
-  });
-  if (noActive) {
-    // 全drawボタンが非アクティブの時
-  }
-}
 
 document.addEventListener('mousedown', (event) => {
   if (event.button === 0) 
@@ -816,6 +787,78 @@ document.addEventListener('mousemove', e => {
   // マウスの左側に表示、上辺をカーソルの中央に合わせる
   previewCanvas.style.left = (e.pageX - cw - 10) + 'px';
   previewCanvas.style.top  = (e.pageY - ch/2) + 'px';
+});
+
+// Keyboard shortcuts: frames, zoom, showMode toggle
+document.addEventListener('keydown', (e) => {
+  // Ignore when typing in inputs/textareas
+  const activeTag = document.activeElement?.tagName;
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+  const key = e.key;
+  const isAlt = e.altKey;
+  const isShift = e.shiftKey;
+
+  // Frame decrement: '<' or ','  (support both '<' and ',' for different layouts)
+  if ((key === '<' || key === ',') && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    if (isAlt) {
+      // Go to first frame
+      if (uploadedImages.length) {
+        frameIndex = 0;
+        prepareAndShowImage(frameIndex, showMode);
+        updateFrmBtns(frameIndex);
+      }
+    } else {
+      // Decrement current frame
+      if (uploadedImages.length) {
+        frameIndex = Math.max(0, frameIndex - 1);
+        prepareAndShowImage(frameIndex, showMode);
+        updateFrmBtns(frameIndex);
+      }
+    }
+    return;
+  }
+
+  // Frame increment: '>' or '.'
+  if ((key === '>' || key === '.') && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    if (isAlt) {
+      // Go to last frame
+      if (uploadedImages.length) {
+        frameIndex = uploadedImages.length - 1;
+        prepareAndShowImage(frameIndex, showMode);
+        updateFrmBtns(frameIndex);
+      }
+    } else {
+      // Increment current frame
+      if (uploadedImages.length) {
+        frameIndex = Math.min(uploadedImages.length - 1, frameIndex + 1);
+        prepareAndShowImage(frameIndex, showMode);
+        updateFrmBtns(frameIndex);
+      }
+    }
+    return;
+  }
+
+  // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
+  if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    const containerRect = editorContent.getBoundingClientRect();
+    const centerX = containerRect.width / 2;
+    const centerY = containerRect.height / 2;
+    if (isShift) changeZoomStep(-1, centerX, centerY);
+    else changeZoomStep(1, centerX, centerY);
+    return;
+  }
+
+  // Toggle showMode: 'q' toggles between 'processed' and 'original'
+  if (key.toLowerCase() === 'q' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    showMode = (showMode === 'processed') ? 'original' : 'processed';
+    prepareAndShowImage(frameIndex, showMode);
+    return;
+  }
 });
 
 // Ensure the image for index `i` and mode `showMode` is ready, generate it if needed, then display.
@@ -844,6 +887,10 @@ async function prepareAndShowImage(i, showMode) {
 
 // カメラワーク / 範囲選択処理
 let zoom = 1;
+// Allowed zoom steps — fixed sequence requested by user (0.5,1,2,3,4,5,...).
+// Extend the list as needed; values after 5 are kept in sequence.
+const zoomLevels = [0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12];
+
 let offsetX = 0, offsetY = 0;
 let isDragging = false;
 let startX, startY;
@@ -851,6 +898,45 @@ let startX, startY;
 canvas.style.transformOrigin = "0 0"; // 左上基準
 drawCanvas.style.transformOrigin = "0 0";
 overlayCanvas.style.transformOrigin = "0 0";
+
+// Find the index of the closest zoom level for a given zoom value
+function findClosestZoomIndex(z) {
+  let best = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < zoomLevels.length; ++i) {
+    const d = Math.abs(z - zoomLevels[i]);
+    if (d < bestDiff) {
+      bestDiff = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+// Set zoom to an exact allowed value and recenter around (centerX, centerY)
+// centerX/centerY are coordinates relative to editorContent (client coords minus container left/top)
+function setZoom(newZoom, centerX = null, centerY = null) {
+  const prevZoom = zoom;
+  zoom = newZoom;
+
+  // If center provided, preserve the visual point under center when scaling
+  if (centerX !== null && centerY !== null) {
+    offsetX = centerX - (centerX - offsetX) * (zoom / prevZoom);
+    offsetY = centerY - (centerY - offsetY) * (zoom / prevZoom);
+  }
+
+  updateTransform();
+}
+
+// Move by discrete zoom step: delta = +1 => zoom in to next larger level, -1 => zoom out
+function changeZoomStep(delta, centerX = null, centerY = null) {
+  const idx = findClosestZoomIndex(zoom);
+  let nextIdx = idx + delta;
+  if (nextIdx < 0) nextIdx = 0;
+  if (nextIdx >= zoomLevels.length) nextIdx = zoomLevels.length - 1;
+  const newZoom = zoomLevels[nextIdx];
+  setZoom(newZoom, centerX, centerY);
+}
 
 editorContent.addEventListener("contextmenu", (event) => {
   event.preventDefault();
@@ -976,27 +1062,16 @@ function fillLassoRegion(mode = 'fill') {
 
 editorContent.addEventListener("wheel", (e) => {
   e.preventDefault();
-
-  const zoomFactor = 1.1;
-  const prevZoom = zoom;
-
-  // 拡縮
-  if (e.deltaY < 0) {
-    zoom *= zoomFactor;
-  } else {
-    zoom /= zoomFactor;
-  }
-
-  // editorContent基準のマウス座標を取得
+  // Use discrete zoom steps defined in zoomLevels, snapping to the next/previous level.
   const containerRect = editorContent.getBoundingClientRect();
   const mouseX = e.clientX - containerRect.left;
   const mouseY = e.clientY - containerRect.top;
 
-  // ズーム補正
-  offsetX = mouseX - (mouseX - offsetX) * (zoom / prevZoom);
-  offsetY = mouseY - (mouseY - offsetY) * (zoom / prevZoom);
-
-  updateTransform();
+  if (e.deltaY < 0) {
+    changeZoomStep(1, mouseX, mouseY);
+  } else {
+    changeZoomStep(-1, mouseX, mouseY);
+  }
 }, { passive: false });
 
 function updateTransform() {
