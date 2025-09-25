@@ -69,6 +69,7 @@ const tracePressShaderCode = /* glsl */`
     let col = u32(idx) | (select(0xFFu, 0x00u, res.isWhite) << 8u) | (0x00u << 16u) | (0xFFu << 24u);
     var pres = res.pressure;
 
+    // 閾値上げ/下げによる修正
     let pixelIn2 = imageIn2[u32(index)];
     let r2 = f32((pixelIn2 >> 0u) & 0xFFu) / 255.;
     let b2 = f32((pixelIn2 >> 16u) & 0xFFu) / 255.;
@@ -395,7 +396,8 @@ const gaussianMultColShaderCode = /* glsl */`
 const laplacianShaderCode = /* glsl */`
   @group(0) @binding(0) var<uniform> uniforms: Uniforms;
   @group(0) @binding(1) var<storage, read> imageIn: array<f32>;
-  @group(0) @binding(2) var<storage, read_write> imageOut: array<f32>;
+  @group(0) @binding(2) var<storage, read> imageIn2: array<u32>;
+  @group(0) @binding(3) var<storage, read_write> imageOut: array<f32>;
 
   // 3x3 ラプラシアンフィルタ
   const lapKernel: array<array<f32, 3>, 3> = array(
@@ -429,13 +431,15 @@ const laplacianShaderCode = /* glsl */`
     let index = y * w + x;
 
     var sum: f32 = 0.0;
+    let colId = (imageIn2[u32(index)] >> 0u ) & 0xFFu; // 下位8ビットに色IDが入っている
     for (var dy = -ksz; dy <= ksz; dy++) {
       for (var dx = -ksz; dx <= ksz; dx++) {
         let sx = clamp(x + dx, 0, w - 1);
         let sy = clamp(y + dy, 0, h - 1);
         let sampleIndex = sy * w + sx;
+        let colId2 = (imageIn2[u32(sampleIndex)] >> 0u ) & 0xFFu; // 下位8ビットに色IDが入っている
 
-        let value = imageIn[u32(sampleIndex)];
+        let value = select(1.0, imageIn[u32(sampleIndex)], colId == colId2);
         let weight = lapKernel[(dy + ksz)][(dx + ksz)];
 
         // sum += 10.0 * min(min(value + 0.1, 1.0) * 0.1, 0.1) * weight;

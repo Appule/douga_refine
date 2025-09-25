@@ -141,7 +141,8 @@ function preparePipelines(imageData, drawImageData, cfg) {
       bindings: [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'log', binding: 1, type: 'read-only-storage' },
-        { name: 'logBuffer', binding: 2, type: 'storage' },
+        { name: 'binary', binding: 2, type: 'read-only-storage' },
+        { name: 'logBuffer', binding: 3, type: 'storage' },
       ]
     },
     {

@@ -888,8 +888,7 @@ async function prepareAndShowImage(i, showMode) {
 // カメラワーク / 範囲選択処理
 let zoom = 1;
 // Allowed zoom steps — fixed sequence requested by user (0.5,1,2,3,4,5,...).
-// Extend the list as needed; values after 5 are kept in sequence.
-const zoomLevels = [0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12];
+const zoomLevels = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 let offsetX = 0, offsetY = 0;
 let isDragging = false;
@@ -1078,7 +1077,7 @@ function updateTransform() {
   canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
   drawCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
   overlayCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
-  if(zoom > 1.0) {
+  if(zoom >= 1.0) {
     canvas.style.imageRendering = 'pixelated';
     drawCanvas.style.imageRendering = 'pixelated';
     overlayCanvas.style.imageRendering = 'pixelated';
