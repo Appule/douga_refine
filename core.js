@@ -53,8 +53,6 @@ window.AppState = {
   updatePhase: 0, // コンフィグの状態
 }
 
-let globalConfig = null; // グローバルコンフィグ
-let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
 
 let processedImages = { pressure: [], log: [], processed: [] }; // 処理後画像の保持
@@ -262,7 +260,7 @@ dropZone.addEventListener("drop", (e) => {
   frameBtns.length = 0;
   frameIndex = 0;
   cfgToggleStates.length = 0;
-  frameConfigs.length = 0;
+  window.AppState.frameConfigs.length = 0;
   uploadedImages = new Array(fileInfos.length);
   drawImages = new Array(fileInfos.length);
   processedImages = { pressure: new Array(fileInfos.length), log: new Array(fileInfos.length), processed: new Array(fileInfos.length) };
@@ -500,12 +498,13 @@ function updateCfgBtns(){
   if (noActive) {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
     colorEditorMode = 'global';
-    window.ConfigEditor.updateConfig(globalConfig, false);
+    window.ConfigEditor.updateConfig(window.AppState.globalConfig, false);
     pColorEditorMode = colorEditorMode;
   } else {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
     colorEditorMode = 'frames';
-    window.ConfigEditor.updateConfig(frameConfigs[frameCfgIndex], false);
+    const cfg = window.AppState.frameConfigs[frameCfgIndex] ? window.AppState.frameConfigs[frameCfgIndex] : window.AppState.currentConfig;
+    window.ConfigEditor.updateConfig(cfg, false);
     pColorEditorMode = colorEditorMode;
   }
 }
@@ -610,7 +609,7 @@ async function prepareAndShowImage(i, showMode) {
 
   // If the processed image is out-of-date or missing, generate it.
   if (window.AppState.updatePhase != processedImages[showMode][i]?.phase) {
-    const cfgToUse = (frameConfigs && frameConfigs[i]) ? frameConfigs[i] : globalConfig;
+    const cfgToUse = (window.AppState.frameConfigs && window.AppState.frameConfigs[i]) ? window.AppState.frameConfigs[i] : window.AppState.globalConfig;
     await processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
   }
 

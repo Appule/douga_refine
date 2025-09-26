@@ -262,11 +262,11 @@
     });
   }
 
-  // currentConfigを更新
+  // configを更新・描画
   const updateConfig = function(cfg, isEdited = false){
-    cfg.colorBlocks = Object.values(cfg.colorBlocks);
     window.AppState.currentConfig = cfg;
     if(isEdited) applyConfig(cfg);
+    updateCfgElm(cfg);
   }
 
   // cfgElmを更新
@@ -318,13 +318,13 @@
     if(cfgToggleStates.some(Boolean)){
       for(let i = 0; i < cfgToggleStates.length; ++i){
         if(cfgToggleStates[i]) {
-          frameConfigs[i] = cfg;
+          window.AppState.frameConfigs[i] = cfg;
           frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
           if(processedImages['processed'][i]?.phase) --processedImages['processed'][i].phase;
         }
       }
     } else {
-      globalConfig = cfg;
+      window.AppState.globalConfig = cfg;
       ++window.AppState.updatePhase;
     }
     prepareAndShowImage(frameIndex, window.AppState.showMode);
