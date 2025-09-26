@@ -70,7 +70,6 @@
     reader.readAsText(file);
   }
 
-
   // 新しいカラーブロック要素を作成（削除ボタン付き）
   const createColorBlock = function(initialLabelColor, initialColor) {
     let currentConfig = window.AppState.currentConfig;
@@ -161,7 +160,7 @@
         window.AppState.currentConfig.colorBlocks[colorBlockSize].enabled = enableCheckbox.checked;
         applyCurrentConfig();
         ++updatePhase;
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
   }
@@ -206,7 +205,7 @@
         console.log(`背景カラー更新: ${window.AppState.currentConfig.bgColor}`);
         applyCurrentConfig();
         ++updatePhase;
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
     if (bgLabelPicker) {
@@ -216,7 +215,7 @@
         console.log(`背景ラベルカラー更新: ${window.AppState.currentConfig.bgLabelColor}`);
         applyCurrentConfig();
         ++updatePhase;
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
   }
@@ -246,7 +245,7 @@
     renderColorBlocksFromConfig(window.AppState.currentConfig);
     applyCurrentConfig();
     ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
   /* Update existing color blocks from a cfg (used when switching between global/frame modes) */
@@ -318,7 +317,7 @@
 
     applyCurrentConfig();
     ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
   //  デフォルトのカラーブロックを生成
@@ -403,7 +402,7 @@
     console.log(`スライダー更新: ${label} ${channel} = ${sliders[channel]}`);
     applyCurrentConfig();
     ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
   const onWheelNum = function(e) {
@@ -458,11 +457,13 @@
       globalConfig = strCfg;
       ++updatePhase;
     }
-    prepareAndShowImage(frameIndex, showMode);
+    prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
+  //// 共有オブジェクト
   window.ConfigEditor = {
     init: init,
     loadLocalConfig: loadLocalConfig,
   }
+
 })();

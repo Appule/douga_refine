@@ -33,26 +33,14 @@ function updateFrameButtonsForMode(mode) {
     }
   }
   if (allProcessed) {
-    allProcBtn.classList.remove('blink');
+    window.FloatPanel.allProcBtn.classList.remove('blink');
   } else {
-    allProcBtn.classList.add('blink');
+    window.FloatPanel.allProcBtn.classList.add('blink');
   }
 }
 
-const windows = [
-  new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'),
-];
+window.FloatPanel.init();
 
-const fileNameInput = windows[0].addTextInput('保存ファイル名', () => {
-  if (fileNameInput.value.trim() === '') {
-    fileNameInput.classList.add('blink');
-  } else {
-    fileNameInput.classList.remove('blink');
-  }
-});
-fileNameInput.classList.add('blink');
-
-let showMode = 'processed'; // 現在の描画モード
 let updatePhase = 0; // コンフィグの状態
 let frameIndex = 0; // 現在のフレーム番号
 let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
@@ -61,10 +49,13 @@ let cfgIsPressed = false; // コンフィグボタンの押下状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
 window.AppState = {
+  showMode: 'processed', // 現在の描画モード
+  cursorMode: 'camera', // 現在のカーソルモード
   currentConfig: { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }, // 表示中のコンフィグデータ
   globalConfig: { }, // グローバルコンフィグ
   frameConfigs: [ ], // フレームコンフィグ
 }
+
 let globalConfig = null; // グローバルコンフィグ
 let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
@@ -72,9 +63,6 @@ const frameBtns = []; // フレームボタン用
 let processedImages = { pressure: [], log: [], processed: [] }; // 処理後画像の保持
 let uploadedImages = []; // アップロードした画像
 let drawImages = []; // マーキング画像
-
-let cursorMode = 'camera'; // 現在のカーソルモード
-const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
 
 const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
 const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
@@ -110,32 +98,14 @@ const colorEditorTitle = document.getElementById("color-editor-title");
 let bgPicker = null;
 let bgLabelPicker = null;
 
-function changeShowMode(mode) {
-  showMode = mode;
-  prepareAndShowImage(frameIndex, showMode);
-}
-windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => changeShowMode('original'), true, 'rgb(0, 185, 40)');
-windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
-windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => changeShowMode('pressure'), true);
-windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => changeShowMode('log'), true);
-// windows[0].addButton("DEBUG", changeShowMode('DEBUG'), true);
-
-const cursorModeList = windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { cursorMode = modeList[e]; }, 'rgba(89, 98, 219, 1)');
-
-const allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', processAllImages, false, 'rgb(0, 153, 221)');
-
 async function processAllImages(){
-  if(showMode === 'original') await changeShowMode('processed');
+  if(window.AppState.showMode === 'original') await changeShowMode('processed');
   for (let i = 0; i < uploadedImages.length; i++) {
-    await prepareAndShowImage(i, showMode);
+    await prepareAndShowImage(i, window.AppState.showMode);
   }
-  await prepareAndShowImage(frameIndex, showMode);
+  await prepareAndShowImage(frameIndex, window.AppState.showMode);
   showStatus('全画像の処理を実行しました。', 'success', 3000);
 }
-
-const fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 'tga'], () => {}, 'rgb(0, 185, 40)');
-
-windows[0].addButton('<i class="fas fa-file-download"></i> 保存', saveImages, false, 'rgb(0, 153, 221)');
 
 // ファイル操作
 async function loadTIFF(file) {
@@ -372,82 +342,6 @@ function encodeTGA(imgData) {
   return new Blob([header, body], { type: "image/x-tga" });
 }
 
-async function saveImages() {
-  const fileName = fileNameInput.value.trim();
-  const fileFormat = fileExtList.value;
-  if (fileName === '') {
-    alert('ファイル名を入力してください。');
-    fileNameInput.classList.add('blink');
-    return;
-  }
-  if (fileFormat === '') {
-    alert('ファイル形式を選択してください。');
-    return;
-  }
-  if (processedImages.processed.length === 0) {
-    alert('保存する画像がありません。');
-    return;
-  }
-  // 確認ダイアログ
-  const ok = confirm(`「${fileName}_XXXX.${fileFormat}」という名前で保存しますか？`);
-  if (!ok) {
-    return; // キャンセルされたら処理を中止
-  }
-  // 全処理
-  let allProcessed = false;
-  for (let j = 0; j < uploadedImages.length; j++) {
-    if (!processedImages['processed'][j]?.img || updatePhase != processedImages['processed'][j]?.phase) {
-      allProcessed = false;
-      break;
-    }
-    allProcessed = true;
-  }
-  if(!allProcessed){
-    await processAllImages();
-  }
-  showStatus('ZIPファイルを生成中...', 'info');
-  
-  const zip = new JSZip();
-
-  for (let i = 0; i < processedImages.processed.length; i++) {
-    const imgData = processedImages.processed[i].img;
-    if (!imgData) continue;
-
-    canvas.width = imgData.width;
-    canvas.height = imgData.height;
-    ctx.putImageData(imgData, 0, 0);
-
-    let blob;
-    if (fileFormat === 'png') {
-      blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-    } else if (fileFormat === 'tif') {
-      blob = encodeTIFF(imgData);
-    } else if (fileFormat === 'tga') {
-      blob = encodeTGA(imgData);
-    } else {
-      throw new Error('Unsupported format: ' + fileFormat);
-    }
-      
-    const base = fileNameInput.value;
-    const num  = fileInfos[i].padded;
-    const name = `${base}_${num}.${fileFormat}`;
-
-    zip.file(name, blob);
-  }
-  
-  localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
-  zip.file("config.json", JSON.stringify(globalConfig, null, 2));
-
-  const blob = await zip.generateAsync({ type: "blob" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `${fileName}.zip`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-
-  showStatus('ZIPファイルの保存が完了しました。', 'success', 3000);
-}
-
 // コンフィグのセーブ (エクスポート)
 document.getElementById('exportColorsBtn').addEventListener('click', saveConfig);
 function saveConfig() {
@@ -459,18 +353,6 @@ function saveConfig() {
   dlAnchorElem.click(); 
   showStatus('Configファイルの保存が完了しました。', 'success', 3000);
 }
-
-// --- ウィンドウ表示切替 ---
-let visible = true;
-const toggleButton = document.getElementById('toggleButton');
-toggleButton.addEventListener('click', () => {
-  visible = !visible;
-  windows.forEach(w => w.toggle(visible));
-  toggleButton.textContent = visible ? 'ウィンドウ非表示' : 'ウィンドウ表示';
-});
-windows.forEach(w => w.toggle(visible));
-// ウィンドウのトグルボタンは一旦非表示
-toggleButton.style.display = 'none';
 
 // ページ設定
 document.addEventListener('DOMContentLoaded', () => {
@@ -586,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function applyCurrentDrawing(){
   drawImages[frameIndex] = dctx.getImageData(0, 0, canvas.width, canvas.height);
   frameBtns[frameIndex].dbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
-  if(processedImages[showMode]?.[frameIndex]) processedImages[showMode][frameIndex].phase -= 1;
+  if(processedImages[window.AppState.showMode]?.[frameIndex]) processedImages[window.AppState.showMode][frameIndex].phase -= 1;
 }
 
 menuContent.addEventListener("contextmenu", (event) => {
@@ -634,10 +516,12 @@ dropZone.addEventListener("drop", (e) => {
     return { file: f, padded, num, basename };
   })
   .sort((a, b) => a.num - b.num);
+  
+  // フロートパネルのファイル名欄を更新
+  window.FloatPanel.fileNameInput.value = fileInfos[0].basename;
+  window.FloatPanel.fileNameInput.dispatchEvent(new Event('input'));
 
-  fileNameInput.value = fileInfos[0].basename;
-  fileNameInput.dispatchEvent(new Event('input'));
-
+  // フレームメニューを初期化
   menuContent.innerHTML = '';
   frameBtns.length = 0;
   frameIndex = 0;
@@ -660,7 +544,7 @@ dropZone.addEventListener("drop", (e) => {
       buttonIsPressed |= event.button == 0 ? 1 : 0;
       fbtn.classList.add('active');
       frameIndex = index;
-      await prepareAndShowImage(index, showMode);
+      await prepareAndShowImage(index, window.AppState.showMode);
       // frameIndexのボタンを強調表示
       updateFrmBtns(index);
     });
@@ -668,7 +552,7 @@ dropZone.addEventListener("drop", (e) => {
       if(buttonIsPressed) {
         fbtn.classList.add('active');
         frameIndex = index;
-        await prepareAndShowImage(index, showMode);
+        await prepareAndShowImage(index, window.AppState.showMode);
         // frameIndexのボタンを強調表示
         updateFrmBtns(index);
         if(cfgIsPressed){
@@ -834,7 +718,7 @@ async function initCanvas(extName, index, fileNum){
       zoomLevels.splice(1, 0, 1); // ensure 1 is present near start (safe guard)
     }
     setZoom(1);
-    await prepareAndShowImage(0, showMode);
+    await prepareAndShowImage(0, window.AppState.showMode);
     if (drawImages[frameIndex]){
       dctx.putImageData(drawImages[frameIndex], 0, 0);
     } else {
@@ -917,14 +801,14 @@ document.addEventListener('keydown', (e) => {
       // Go to first frame
       if (uploadedImages.length) {
         frameIndex = 0;
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
         updateFrmBtns(frameIndex);
       }
     } else {
       // Decrement current frame
       if (uploadedImages.length) {
         frameIndex = Math.max(0, frameIndex - 1);
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
         updateFrmBtns(frameIndex);
       }
     }
@@ -938,14 +822,14 @@ document.addEventListener('keydown', (e) => {
       // Go to last frame
       if (uploadedImages.length) {
         frameIndex = uploadedImages.length - 1;
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
         updateFrmBtns(frameIndex);
       }
     } else {
       // Increment current frame
       if (uploadedImages.length) {
         frameIndex = Math.min(uploadedImages.length - 1, frameIndex + 1);
-        prepareAndShowImage(frameIndex, showMode);
+        prepareAndShowImage(frameIndex, window.AppState.showMode);
         updateFrmBtns(frameIndex);
       }
     }
@@ -966,8 +850,8 @@ document.addEventListener('keydown', (e) => {
   // Toggle showMode: 'q' toggles between 'processed' and 'original'
   if (key.toLowerCase() === 'q' && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
-    showMode = (showMode === 'processed') ? 'original' : 'processed';
-    prepareAndShowImage(frameIndex, showMode);
+    window.AppState.showMode = (window.AppState.showMode === 'processed') ? 'original' : 'processed';
+    prepareAndShowImage(frameIndex, window.AppState.showMode);
     return;
   }
 });
@@ -1054,7 +938,7 @@ editorContent.addEventListener("contextmenu", (event) => {
 
 // 左クリックでドラッグパン
 editorContent.addEventListener("mousedown", (e) => {
-  if (cursorMode !== 'camera') return;
+  if (window.AppState.cursorMode !== 'camera') return;
   if (e.button === 1) { // 中ボタンでリセット
     offsetX = 0;
     offsetY = 0;
@@ -1073,14 +957,14 @@ editorContent.addEventListener("mousedown", (e) => {
 });
 
 editorContent.addEventListener("mousemove", (e) => {
-  if (cursorMode !== 'camera' || !isDragging) return;
+  if (window.AppState.cursorMode !== 'camera' || !isDragging) return;
   offsetX = e.clientX - startX;
   offsetY = e.clientY - startY;
   updateTransform();
 });
 
 editorContent.addEventListener("mouseup", () => {
-  if (cursorMode !== 'camera') return;
+  if (window.AppState.cursorMode !== 'camera') return;
   isDragging = false;
 });
 
@@ -1089,7 +973,7 @@ let isLassoing   = false;
 let lassoPoints  = [];   // {x,y}
 // 投げ縄開始
 editorContent.addEventListener('mousedown', e => {
-  if (cursorMode !== 'highTh' && cursorMode !== 'lowTh') return;
+  if (window.AppState.cursorMode !== 'highTh' && window.AppState.cursorMode !== 'lowTh') return;
 
   isLassoing  = true;
   lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
@@ -1152,7 +1036,7 @@ function fillLassoRegion(mode = 'fill') {
  
   let fillColor;
   if (mode == 'fill') {
-    fillColor = cursorMode == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
+    fillColor = window.AppState.cursorMode == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
   } else if (mode == 'erase') {
     fillColor = 'rgb(255, 255, 255, 1.0)';
   } else {
@@ -1166,7 +1050,7 @@ function fillLassoRegion(mode = 'fill') {
   dctx.restore();
   applyCurrentDrawing();
  
-  prepareAndShowImage(frameIndex, showMode);
+  prepareAndShowImage(frameIndex, window.AppState.showMode);
 }
 
 
