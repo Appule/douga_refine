@@ -1,4 +1,3 @@
-// --- カスタムウィンドウ関連 ---// --- ユーザーインターフェース関連処理 ---
 // ステータス出力
 function showStatus(message, type = 'info', duration = null) {
   const statusElement = document.getElementById('status')
@@ -22,7 +21,7 @@ function updateFrameButtonsForMode(mode) {
   let allProcessed = true;
   for (let j = 0; j < uploadedImages.length; j++) {
     const proc = processedImages[mode]?.[j];
-    const done = proc?.img && proc?.phase === updatePhase;
+    const done = proc?.img && proc?.phase === window.AppState.updatePhase;
     const btn = frameBtns[j];
     if (!btn) continue;
     if (!done) {
@@ -39,9 +38,6 @@ function updateFrameButtonsForMode(mode) {
   }
 }
 
-window.FloatPanel.init();
-
-let updatePhase = 0; // コンフィグの状態
 let frameIndex = 0; // 現在のフレーム番号
 let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
 let cfgToggleStates = []; // コンフィグボタンのトグル状態
@@ -54,6 +50,7 @@ window.AppState = {
   currentConfig: { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }, // 表示中のコンフィグデータ
   globalConfig: { }, // グローバルコンフィグ
   frameConfigs: [ ], // フレームコンフィグ
+  updatePhase: 0, // コンフィグの状態
 }
 
 let globalConfig = null; // グローバルコンフィグ
@@ -64,7 +61,6 @@ let processedImages = { pressure: [], log: [], processed: [] }; // 処理後画�
 let uploadedImages = []; // アップロードした画像
 let drawImages = []; // マーキング画像
 
-const defaultSliderValue = { threshold: 0, log: 0, weight: 0 };
 const gValueRanges = { threshold: [0, 1], log: [0, 10], weight: [0, 10] };
 let colorEditorMode = 'global';
 let pColorEditorMode = colorEditorMode;
@@ -97,262 +93,6 @@ const pctx = previewCanvas.getContext('2d');
 const colorEditorTitle = document.getElementById("color-editor-title");
 let bgPicker = null;
 let bgLabelPicker = null;
-
-async function processAllImages(){
-  if(window.AppState.showMode === 'original') await changeShowMode('processed');
-  for (let i = 0; i < uploadedImages.length; i++) {
-    await prepareAndShowImage(i, window.AppState.showMode);
-  }
-  await prepareAndShowImage(frameIndex, window.AppState.showMode);
-  showStatus('全画像の処理を実行しました。', 'success', 3000);
-}
-
-// ファイル操作
-async function loadTIFF(file) {
-  // Return ImageData for a TIFF file (caller will handle canvas drawing / caching)
-  const buffer = await file.arrayBuffer();
-  const ifds = UTIF.decode(buffer);
-  UTIF.decodeImages(buffer, ifds);
-
-  const rgba = UTIF.toRGBA8(ifds[0]);
-  const width = ifds[0].width;
-  const height = ifds[0].height;
-
-  return new ImageData(new Uint8ClampedArray(rgba), width, height);
-}
-
-async function loadTGA(file) {
-  // Parse TGA and return ImageData (caller will handle canvas drawing / caching)
-  const buffer = await file.arrayBuffer();
-  const view = new DataView(buffer);
-
-  // --- ヘッダ解析 ---
-  const idLength   = view.getUint8(0);
-  const colorMap   = view.getUint8(1);
-  const imageType  = view.getUint8(2);   // 2 = 非圧縮RGB, 10 = RLE圧縮RGB
-  const width      = view.getUint16(12, true);
-  const height     = view.getUint16(14, true);
-  const depth      = view.getUint8(16);  // 24 or 32
-  const descriptor = view.getUint8(17);
-
-  if (imageType !== 2 && imageType !== 10) {
-    throw new Error("Unsupported TGA type (only type2 or type10 supported).");
-  }
-
-  const offset = 18 + idLength; // IDフィールドを飛ばす
-  const bytesPerPixel = depth / 8;
-  const imageData = new ImageData(width, height);
-  const rgba = imageData.data;
-  const flipY = !(descriptor & 0x20);
-
-  let src = offset;
-  let dst = 0;
-
-  function writePixel(r, g, b, a) {
-    const px = dst / 4;
-    const x = px % width;
-    const y = Math.floor(px / width);
-    const row = flipY ? (height - 1 - y) : y;
-    const dstIndex = (row * width + x) * 4;
-    rgba[dstIndex] = r;
-    rgba[dstIndex + 1] = g;
-    rgba[dstIndex + 2] = b;
-    rgba[dstIndex + 3] = a;
-    dst += 4;
-  }
-
-  if (imageType === 2) {
-    // 非圧縮
-    while (dst < width * height * 4) {
-      const b = view.getUint8(src++);
-      const g = view.getUint8(src++);
-      const r = view.getUint8(src++);
-      const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
-      writePixel(r, g, b, a);
-    }
-  } else if (imageType === 10) {
-    // RLE圧縮
-    while (dst < width * height * 4) {
-      const header = view.getUint8(src++);
-      const count = (header & 0x7F) + 1;
-
-      if (header & 0x80) {
-        // RLEパケット
-        const b = view.getUint8(src++);
-        const g = view.getUint8(src++);
-        const r = view.getUint8(src++);
-        const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
-        for (let i = 0; i < count; i++) {
-          writePixel(r, g, b, a);
-        }
-      } else {
-        // RAWパケット
-        for (let i = 0; i < count; i++) {
-          const b = view.getUint8(src++);
-          const g = view.getUint8(src++);
-          const r = view.getUint8(src++);
-          const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
-          writePixel(r, g, b, a);
-        }
-      }
-    }
-  }
-
-  return imageData;
-}
-
-async function loadIMG(file) {
-  // Read as DataURL, draw into an offscreen canvas and return ImageData
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const width = img.naturalWidth;
-        const height = img.naturalHeight;
-        // Ensure offscreen canvas is available and sized
-        offscreenCanvas.width = width;
-        offscreenCanvas.height = height;
-        osctx.clearRect(0, 0, width, height);
-        osctx.drawImage(img, 0, 0, width, height);
-        try {
-          const imageData = osctx.getImageData(0, 0, width, height);
-          resolve(imageData);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// Canvas ImageData → TIFF Blob
-function encodeTIFF(imgData) {
-  // RGBA をそのまま Uint8Array で取得
-  const rgba = new Uint8Array(imgData.data);
-
-  // UTIF.encodeImage は RGBA配列・幅・高さを受け取る
-  const tiffBuffer = UTIF.encodeImage(
-    rgba,
-    imgData.width,
-    imgData.height,
-    {
-      t258: [8, 8, 8, 8], // BitsPerSample
-      t259: [1],          // Compression
-      t262: [2],          // PhotometricInterpretation
-      t277: [4],          // SamplesPerPixel
-    }
-  );
-
-  return new Blob([tiffBuffer], { type: "image/tiff" });
-}
-
-// Canvas ImageData → TGA Blob (RGB)
-function encodeTGA(imgData) {
-  const w = imgData.width;
-  const h = imgData.height;
-  const pixels = imgData.data;
-  const header = new Uint8Array(18);
-
-  header[2] = 10;               // type10: RLE truecolor
-  header[12] = w & 0xFF;
-  header[13] = (w >> 8) & 0xFF;
-  header[14] = h & 0xFF;
-  header[15] = (h >> 8) & 0xFF;
-  header[16] = 24;              // 24bit (BGR)
-  header[17] = 0x00;            // origin 下左に変更
-
-  const out = [];
-  const getPixel = (x, y) => {
-    const i = (y * w + x) * 4;
-    return [pixels[i + 2], pixels[i + 1], pixels[i]]; // BGR
-    // const bk = Math.max(Math.max(pixels[i + 2], pixels[i + 1]), pixels[i]);
-    // return [bk, bk, bk]; // only blk
-    // return bk == 0 ? [255, 255, 255] : [pixels[i + 2], pixels[i + 1], pixels[i]]; // only BGR
-  };
-
-  const pixelEquals = (x1, y1, x2, y2) => {
-    const i1 = (y1 * w + x1) * 4;
-    const i2 = (y2 * w + x2) * 4;
-    return pixels[i1] === pixels[i2] && 
-           pixels[i1 + 1] === pixels[i2 + 1] && 
-           pixels[i1 + 2] === pixels[i2 + 2];
-  };
-
-  // 下から上に処理（TGA標準）
-  for (let y = h - 1; y >= 0; y--) {
-    let x = 0;
-    while (x < w) {
-      const startX = x;
-      
-      // 現在のピクセルから何個連続するかチェック
-      let runLength = 1;
-      while (x + runLength < w && 
-             runLength < 128 && 
-             pixelEquals(startX, y, startX + runLength, y)) {
-        runLength++;
-      }
-
-      if (runLength >= 3) {
-        // RLEパケット（3個以上連続する場合のみ）
-        out.push(0x80 | (runLength - 1));
-        const pixel = getPixel(startX, y);
-        out.push(pixel[0], pixel[1], pixel[2]);
-        x += runLength;
-      } else {
-        // RAWパケット
-        let rawCount = 1;
-        let nextX = x + 1;
-        
-        // 次に3個以上連続する箇所が出てくるまで、またはパケット上限まで
-        while (nextX < w && rawCount < 128) {
-          // 現在位置から3個連続チェック
-          let consecutiveCount = 1;
-          while (nextX + consecutiveCount < w && 
-                 consecutiveCount < 3 && 
-                 pixelEquals(nextX, y, nextX + consecutiveCount, y)) {
-            consecutiveCount++;
-          }
-          
-          // 3個以上連続するなら、RAWパケットを終了
-          if (consecutiveCount >= 3) {
-            break;
-          }
-          
-          rawCount++;
-          nextX++;
-        }
-
-        // RAWパケット出力
-        out.push(rawCount - 1);
-        for (let i = 0; i < rawCount; i++) {
-          const pixel = getPixel(x + i, y);
-          out.push(pixel[0], pixel[1], pixel[2]);
-        }
-        x += rawCount;
-      }
-    }
-  }
-
-  const body = new Uint8Array(out);
-  return new Blob([header, body], { type: "image/x-tga" });
-}
-
-// コンフィグのセーブ (エクスポート)
-document.getElementById('exportColorsBtn').addEventListener('click', saveConfig);
-function saveConfig() {
-  localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalConfig, null, 2));
-  const dlAnchorElem = document.createElement('a');
-  dlAnchorElem.setAttribute("href", dataStr);
-  dlAnchorElem.setAttribute("download", `config_v2.json`);
-  dlAnchorElem.click(); 
-  showStatus('Configファイルの保存が完了しました。', 'success', 3000);
-}
 
 // ページ設定
 document.addEventListener('DOMContentLoaded', () => {
@@ -656,7 +396,7 @@ dropZone.addEventListener("drop", (e) => {
       try {
         let imgData;
         if (ext === 'tga') {
-          imgData = await loadTGA(info.file);
+          imgData = await window.ImageLoader.loadTGA(info.file);
         } else if (ext === 'tif' || ext === 'tiff') {
           imgData = await loadTIFF(info.file);
         } else {
@@ -695,7 +435,7 @@ dropZone.addEventListener("drop", (e) => {
       }
     })();
   });
-  ++updatePhase;
+  ++window.AppState.updatePhase;
   updateFrmBtns(0);
 
   // 最初の文言を削除
@@ -758,12 +498,12 @@ function updateCfgBtns(){
   if (noActive) {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
     colorEditorMode = 'global';
-    updateColorBlocks(globalConfig);
+    window.ConfigEditor.updateColorBlocks(globalConfig);
     pColorEditorMode = colorEditorMode;
   } else {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
     colorEditorMode = 'frames';
-    updateColorBlocks(frameConfigs[frameCfgIndex]);
+    window.ConfigEditor.updateColorBlocks(frameConfigs[frameCfgIndex]);
     pColorEditorMode = colorEditorMode;
   }
 }
@@ -867,7 +607,7 @@ async function prepareAndShowImage(i, showMode) {
   }
 
   // If the processed image is out-of-date or missing, generate it.
-  if (updatePhase != processedImages[showMode][i]?.phase) {
+  if (window.AppState.updatePhase != processedImages[showMode][i]?.phase) {
     const cfgToUse = (frameConfigs && frameConfigs[i]) ? frameConfigs[i] : globalConfig;
     await processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
   }

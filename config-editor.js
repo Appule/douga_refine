@@ -1,7 +1,10 @@
 (function() {
 
+  // initialize config entry for this block
+  const INITIAL_SLIDER_VAL = { threshold: 0.5, log: 0, weight: 1 };
+
   const init = function() {
-    // ボタン押下でfile input起動
+    // インポートボタン
     const importBtn = document.getElementById('importColorsBtn');
     const fileInput = document.getElementById('configFileInput');
     importBtn.addEventListener('click', () => { fileInput.click(); });
@@ -29,6 +32,9 @@
       }
     });
   }
+
+  // エクスポートボタン
+  document.getElementById('exportColorsBtn').addEventListener('click', saveConfig);
 
   // ローカルストレージからコンフィグをロード
   const loadLocalConfig = function() {
@@ -70,8 +76,19 @@
     reader.readAsText(file);
   }
 
+  // コンフィグのセーブ (エクスポート)
+  function saveConfig() {
+    localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalConfig, null, 2));
+    const dlAnchorElem = document.createElement('a');
+    dlAnchorElem.setAttribute("href", dataStr);
+    dlAnchorElem.setAttribute("download", `config_v2.json`);
+    dlAnchorElem.click(); 
+    showStatus('Configファイルの保存が完了しました。', 'success', 3000);
+  }
+
   // 新しいカラーブロック要素を作成（削除ボタン付き）
-  const createColorBlock = function(initialLabelColor, initialColor) {
+  const createColorBlock = function(initialLabelColor, initialColor, initialSlider) {
     let currentConfig = window.AppState.currentConfig;
     const colorBlockSize = currentConfig.colorBlocks ? Object.keys(currentConfig.colorBlocks).length : 0;
     const container = document.querySelector('.color-content');
@@ -93,18 +110,18 @@
           <div class="sliders-container">
             <div class="slider-row">
               <span class="slider-label">閾値　</span>
-              <input type="range" class="color-slider" min="0" max="1" step="0.01" value="0.5" data-channel="threshold"/>
-              <input type="number" class="slider-value" min="0" max="1" step="0.01" value="0.5"/>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.threshold}" data-channel="threshold"/>
+              <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.threshold}"/>
             </div>
             <div class="slider-row">
               <span class="slider-label">線検知</span>
-              <input type="range" class="color-slider" min="0" max="10" step="0.1" value="0" data-channel="log">
-              <input type="number" class="slider-value" min="0" max="10" step="0.1" value="0.0"/>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.log}" data-channel="log">
+              <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.log}"/>
             </div>
             <div class="slider-row">
               <span class="slider-label">重み　</span>
-              <input type="range" class="color-slider" min="0" max="10" step="0.1" value="1" data-channel="weight">
-              <input type="number" class="slider-value" min="0" max="10" step="0.1" value="1.0"/>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.weight}" data-channel="weight">
+              <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.weight}"/>
             </div>
           </div>
         </div>
@@ -119,19 +136,17 @@
     `;
 
     container.insertAdjacentHTML('beforeend', html);
-
+    
     // add button (if present) will be last element - ensure it creates a new color block
     const last = container.lastElementChild;
     if (last && last.id === 'addColorBtn') {
       last.addEventListener('click', () => {
-        createColorBlock('#000000', '#000000');
+        createColorBlock('#000000', '#000000', INITIAL_SLIDER_VAL);
       });
     }
 
-    // initialize config entry for this block
-    const sliders = { threshold: 0.5, log: 0, weight: 1 };
     // add enabled flag default true so checkbox state is tracked
-    window.AppState.currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders, enabled: true };
+    window.AppState.currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: INITIAL_SLIDER_VAL, enabled: true };
     applyCurrentConfig();
     
     // bind events
@@ -159,7 +174,7 @@
       enableCheckbox.addEventListener('change', () => {
         window.AppState.currentConfig.colorBlocks[colorBlockSize].enabled = enableCheckbox.checked;
         applyCurrentConfig();
-        ++updatePhase;
+        ++window.AppState.updatePhase;
         prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
@@ -204,7 +219,7 @@
         window.AppState.currentConfig.bgColor = bgPicker.value;
         console.log(`背景カラー更新: ${window.AppState.currentConfig.bgColor}`);
         applyCurrentConfig();
-        ++updatePhase;
+        ++window.AppState.updatePhase;
         prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
@@ -214,7 +229,7 @@
         window.AppState.currentConfig.bgLabelColor = bgLabelPicker.value;
         console.log(`背景ラベルカラー更新: ${window.AppState.currentConfig.bgLabelColor}`);
         applyCurrentConfig();
-        ++updatePhase;
+        ++window.AppState.updatePhase;
         prepareAndShowImage(frameIndex, window.AppState.showMode);
       });
     }
@@ -233,9 +248,9 @@
       const color = b.querySelector('.color-picker')?.value || '#000000';
       const labelColor = b.querySelector('.label-picker')?.value || color;
       const sliders = {
-        threshold: parseFloat(b.querySelector('.color-slider[data-channel="threshold"]')?.value) || defaultSliderValue.threshold,
-        log: parseFloat(b.querySelector('.color-slider[data-channel="log"]')?.value) || defaultSliderValue.log,
-        weight: parseFloat(b.querySelector('.color-slider[data-channel="weight"]')?.value) || defaultSliderValue.weight,
+        threshold: parseFloat(b.querySelector('.color-slider[data-channel="threshold"]')?.value) || INITIAL_SLIDER_VAL.threshold,
+        log: parseFloat(b.querySelector('.color-slider[data-channel="log"]')?.value) || INITIAL_SLIDER_VAL.log,
+        weight: parseFloat(b.querySelector('.color-slider[data-channel="weight"]')?.value) || INITIAL_SLIDER_VAL.weight,
       };
       newBlocks[i] = { color, labelColor, sliders };
     });
@@ -244,7 +259,7 @@
     window.AppState.currentConfig.colorBlocks = newBlocks;
     renderColorBlocksFromConfig(window.AppState.currentConfig);
     applyCurrentConfig();
-    ++updatePhase;
+    ++window.AppState.updatePhase;
     prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
@@ -257,17 +272,18 @@
     let currentConfig = window.AppState.currentConfig;
     const keys = Object.keys(currentConfig.colorBlocks);
     currentConfig.bgColor = colorCfg.bgColor;
+    currentConfig.bgLabelColor = colorCfg.bgLabelColor;
     for(let i = 0; i < keys.length; ++i){ // 黒,赤,緑,青,...
       const key = keys[i];
       const src = (colorCfg.colorBlocks && colorCfg.colorBlocks[key]) ? colorCfg.colorBlocks[key] : null;
       if (src) {
         currentConfig.colorBlocks[key].color = src.color;
         currentConfig.colorBlocks[key].labelColor = src.labelColor;
-        currentConfig.colorBlocks[key].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[key]) ? { ...sliderCfg.colorBlocks[key].sliders } : { ...defaultSliderValue };
+        currentConfig.colorBlocks[key].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[key]) ? { ...sliderCfg.colorBlocks[key].sliders } : { ...INITIAL_SLIDER_VAL };
       }
     }
     window.AppState.currentConfig = currentConfig;
-    updateConfig();
+    applyCurrentConfig();
   }
 
   // currentConfig に表示中の値を代入 bgColor, colorBlks{col, lcol, sliders{...}}
@@ -316,7 +332,7 @@
     window.AppState.currentConfig = currentConfig;
 
     applyCurrentConfig();
-    ++updatePhase;
+    ++window.AppState.updatePhase;
     prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
@@ -335,7 +351,7 @@
       { labelColor:'#0000ff', color:'#0000ff' },
     ];
 
-    defaults.forEach(d => createColorBlock(d.labelColor, d.color));
+    defaults.forEach(d => createColorBlock(d.labelColor, d.color, INITIAL_SLIDER_VAL));
     updateConfig();
   }
 
@@ -357,10 +373,10 @@
     entries.forEach(([k, v]) => {
       const labelColor = v.labelColor || v.color || '#000000';
       const color = v.color || '#000000';
-      createColorBlock(labelColor, color);
+      createColorBlock(labelColor, color, v.sliders);
       const idx = Object.keys(window.AppState.currentConfig.colorBlocks).length - 1;
       if (v.sliders) {
-        window.AppState.currentConfig.colorBlocks[idx].sliders = { ...defaultSliderValue, ...v.sliders };
+        window.AppState.currentConfig.colorBlocks[idx].sliders = { ...INITIAL_SLIDER_VAL, ...v.sliders };
       }
     });
 
@@ -401,7 +417,7 @@
     sliders[channel] = parseFloat(value);
     console.log(`スライダー更新: ${label} ${channel} = ${sliders[channel]}`);
     applyCurrentConfig();
-    ++updatePhase;
+    ++window.AppState.updatePhase;
     prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
@@ -450,12 +466,12 @@
         if(cfgToggleStates[i]) {
           frameConfigs[i] = strCfg;
           frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
-          processedImages[i].updatePhase--;
+          if(processedImages['processed'][i]?.phase) --processedImages['processed'][i].phase;
         }
       }
     } else {
       globalConfig = strCfg;
-      ++updatePhase;
+      ++window.AppState.updatePhase;
     }
     prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
@@ -464,6 +480,7 @@
   window.ConfigEditor = {
     init: init,
     loadLocalConfig: loadLocalConfig,
+    updateColorBlocks: updateColorBlocks,
   }
 
 })();

@@ -89,9 +89,9 @@ function preparePipelines(imageData, drawImageData, cfg) {
     f32View[i*8 + base + 1] = labelInt;
   
     // sliders (frame config now holds absolute values)
-    const t = src.sliders.threshold;
-    const l = src.sliders.log;
-    const w = src.sliders.weight;
+    const t = src.sliders.threshold * 0.01;
+    const l = src.sliders.log * 0.1;
+    const w = src.sliders.weight * 0.1;
     f32View[i * 8 + base + 2] = t;
     f32View[i * 8 + base + 3] = l;
     f32View[i * 8 + base + 4] = w;
@@ -267,7 +267,7 @@ async function processImage(imageData, drawImageData, cfg, idx) {
 
       processedImages[key][idx] = {
         img: osctx.getImageData(0, 0, canvas.width, canvas.height),
-        phase: updatePhase,
+        phase: window.AppState.updatePhase,
       };
     }
     
