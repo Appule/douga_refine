@@ -219,17 +219,13 @@ function preparePipelines(imageData, drawImageData, cfg) {
 }
 
 let gpuProcessing = false;
-async function processImage(idx) {
-  imageData = uploadedImages[idx];
-  drawImageData = drawImages[idx];
+async function processImage(imageData, drawImageData, cfg, idx) {
   if (!device || !imageData) return showStatus('準備が整っていません', 'error', 3000);
   if (gpuProcessing) return;
   gpuProcessing = true;
   showStatus('<div class="loading"><div class="spinner"></div>WebGPUで処理中...</div>');
   try {
-
-    const cfgToUse = (frameConfigs && frameConfigs[idx]) ? frameConfigs[idx] : globalConfig;
-    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, cfgToUse);
+    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, cfg);
 
     for (const step of steps) {
       const encoder = await runShader(step.code, buffers, step.bindings, width, height);

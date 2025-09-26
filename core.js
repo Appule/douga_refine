@@ -868,7 +868,8 @@ async function prepareAndShowImage(i, showMode) {
 
   // If the processed image is out-of-date or missing, generate it.
   if (updatePhase != processedImages[showMode][i]?.phase) {
-    await processImage(i);
+    const cfgToUse = (frameConfigs && frameConfigs[i]) ? frameConfigs[i] : globalConfig;
+    await processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
   }
 
   const procImg = processedImages[showMode][i]?.img;

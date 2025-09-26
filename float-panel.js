@@ -1,5 +1,3 @@
-
-
 (function() {
   // --- ParamsWindow Class ---
   class ParamsWindow {
