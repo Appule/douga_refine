@@ -1,4 +1,44 @@
-// --- カスタムウィンドウ関連 ---
+// --- カスタムウィンドウ関連 ---// --- ユーザーインターフェース関連処理 ---
+// ステータス出力
+function showStatus(message, type = 'info', duration = null) {
+  const statusElement = document.getElementById('status')
+  statusElement.innerHTML = `<div class="${type}">${message}</div>`;
+
+  if (duration > 0) {
+    setTimeout(() => {
+      statusElement.innerHTML = '';
+    }, duration);
+  }
+}
+
+// Draw ImageData directly to the visible canvas
+function showImage(imageData) {
+  if (!imageData) return;
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// Update frame buttons' styles and the all-process indicator for the given mode
+function updateFrameButtonsForMode(mode) {
+  let allProcessed = true;
+  for (let j = 0; j < uploadedImages.length; j++) {
+    const proc = processedImages[mode]?.[j];
+    const done = proc?.img && proc?.phase === updatePhase;
+    const btn = frameBtns[j];
+    if (!btn) continue;
+    if (!done) {
+      allProcessed = false;
+      btn.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
+    } else {
+      btn.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
+    }
+  }
+  if (allProcessed) {
+    allProcBtn.classList.remove('blink');
+  } else {
+    allProcBtn.classList.add('blink');
+  }
+}
+
 const windows = [
   new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'),
 ];
@@ -20,7 +60,11 @@ let cfgToggleStates = []; // コンフィグボタンのトグル状態
 let cfgIsPressed = false; // コンフィグボタンの押下状態
 
 // colorBlock ... label(色の名前): { color: 色の値, sliders: {} }
-let currentConfig = { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }; // 表示中のコンフィグデータ
+window.AppState = {
+  currentConfig: { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }, // 表示中のコンフィグデータ
+  globalConfig: { }, // グローバルコンフィグ
+  frameConfigs: [ ], // フレームコンフィグ
+}
 let globalConfig = null; // グローバルコンフィグ
 let frameConfigs = []; // フレームコンフィグ
 const frameBtns = []; // フレームボタン用
@@ -93,7 +137,328 @@ const fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 't
 
 windows[0].addButton('<i class="fas fa-file-download"></i> 保存', saveImages, false, 'rgb(0, 153, 221)');
 
-exportBtn.addEventListener('click', saveConfig);
+// ファイル操作
+async function loadTIFF(file) {
+  // Return ImageData for a TIFF file (caller will handle canvas drawing / caching)
+  const buffer = await file.arrayBuffer();
+  const ifds = UTIF.decode(buffer);
+  UTIF.decodeImages(buffer, ifds);
+
+  const rgba = UTIF.toRGBA8(ifds[0]);
+  const width = ifds[0].width;
+  const height = ifds[0].height;
+
+  return new ImageData(new Uint8ClampedArray(rgba), width, height);
+}
+
+async function loadTGA(file) {
+  // Parse TGA and return ImageData (caller will handle canvas drawing / caching)
+  const buffer = await file.arrayBuffer();
+  const view = new DataView(buffer);
+
+  // --- ヘッダ解析 ---
+  const idLength   = view.getUint8(0);
+  const colorMap   = view.getUint8(1);
+  const imageType  = view.getUint8(2);   // 2 = 非圧縮RGB, 10 = RLE圧縮RGB
+  const width      = view.getUint16(12, true);
+  const height     = view.getUint16(14, true);
+  const depth      = view.getUint8(16);  // 24 or 32
+  const descriptor = view.getUint8(17);
+
+  if (imageType !== 2 && imageType !== 10) {
+    throw new Error("Unsupported TGA type (only type2 or type10 supported).");
+  }
+
+  const offset = 18 + idLength; // IDフィールドを飛ばす
+  const bytesPerPixel = depth / 8;
+  const imageData = new ImageData(width, height);
+  const rgba = imageData.data;
+  const flipY = !(descriptor & 0x20);
+
+  let src = offset;
+  let dst = 0;
+
+  function writePixel(r, g, b, a) {
+    const px = dst / 4;
+    const x = px % width;
+    const y = Math.floor(px / width);
+    const row = flipY ? (height - 1 - y) : y;
+    const dstIndex = (row * width + x) * 4;
+    rgba[dstIndex] = r;
+    rgba[dstIndex + 1] = g;
+    rgba[dstIndex + 2] = b;
+    rgba[dstIndex + 3] = a;
+    dst += 4;
+  }
+
+  if (imageType === 2) {
+    // 非圧縮
+    while (dst < width * height * 4) {
+      const b = view.getUint8(src++);
+      const g = view.getUint8(src++);
+      const r = view.getUint8(src++);
+      const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
+      writePixel(r, g, b, a);
+    }
+  } else if (imageType === 10) {
+    // RLE圧縮
+    while (dst < width * height * 4) {
+      const header = view.getUint8(src++);
+      const count = (header & 0x7F) + 1;
+
+      if (header & 0x80) {
+        // RLEパケット
+        const b = view.getUint8(src++);
+        const g = view.getUint8(src++);
+        const r = view.getUint8(src++);
+        const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
+        for (let i = 0; i < count; i++) {
+          writePixel(r, g, b, a);
+        }
+      } else {
+        // RAWパケット
+        for (let i = 0; i < count; i++) {
+          const b = view.getUint8(src++);
+          const g = view.getUint8(src++);
+          const r = view.getUint8(src++);
+          const a = (bytesPerPixel === 4) ? view.getUint8(src++) : 255;
+          writePixel(r, g, b, a);
+        }
+      }
+    }
+  }
+
+  return imageData;
+}
+
+async function loadIMG(file) {
+  // Read as DataURL, draw into an offscreen canvas and return ImageData
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const width = img.naturalWidth;
+        const height = img.naturalHeight;
+        // Ensure offscreen canvas is available and sized
+        offscreenCanvas.width = width;
+        offscreenCanvas.height = height;
+        osctx.clearRect(0, 0, width, height);
+        osctx.drawImage(img, 0, 0, width, height);
+        try {
+          const imageData = osctx.getImageData(0, 0, width, height);
+          resolve(imageData);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Canvas ImageData → TIFF Blob
+function encodeTIFF(imgData) {
+  // RGBA をそのまま Uint8Array で取得
+  const rgba = new Uint8Array(imgData.data);
+
+  // UTIF.encodeImage は RGBA配列・幅・高さを受け取る
+  const tiffBuffer = UTIF.encodeImage(
+    rgba,
+    imgData.width,
+    imgData.height,
+    {
+      t258: [8, 8, 8, 8], // BitsPerSample
+      t259: [1],          // Compression
+      t262: [2],          // PhotometricInterpretation
+      t277: [4],          // SamplesPerPixel
+    }
+  );
+
+  return new Blob([tiffBuffer], { type: "image/tiff" });
+}
+
+// Canvas ImageData → TGA Blob (RGB)
+function encodeTGA(imgData) {
+  const w = imgData.width;
+  const h = imgData.height;
+  const pixels = imgData.data;
+  const header = new Uint8Array(18);
+
+  header[2] = 10;               // type10: RLE truecolor
+  header[12] = w & 0xFF;
+  header[13] = (w >> 8) & 0xFF;
+  header[14] = h & 0xFF;
+  header[15] = (h >> 8) & 0xFF;
+  header[16] = 24;              // 24bit (BGR)
+  header[17] = 0x00;            // origin 下左に変更
+
+  const out = [];
+  const getPixel = (x, y) => {
+    const i = (y * w + x) * 4;
+    return [pixels[i + 2], pixels[i + 1], pixels[i]]; // BGR
+    // const bk = Math.max(Math.max(pixels[i + 2], pixels[i + 1]), pixels[i]);
+    // return [bk, bk, bk]; // only blk
+    // return bk == 0 ? [255, 255, 255] : [pixels[i + 2], pixels[i + 1], pixels[i]]; // only BGR
+  };
+
+  const pixelEquals = (x1, y1, x2, y2) => {
+    const i1 = (y1 * w + x1) * 4;
+    const i2 = (y2 * w + x2) * 4;
+    return pixels[i1] === pixels[i2] && 
+           pixels[i1 + 1] === pixels[i2 + 1] && 
+           pixels[i1 + 2] === pixels[i2 + 2];
+  };
+
+  // 下から上に処理（TGA標準）
+  for (let y = h - 1; y >= 0; y--) {
+    let x = 0;
+    while (x < w) {
+      const startX = x;
+      
+      // 現在のピクセルから何個連続するかチェック
+      let runLength = 1;
+      while (x + runLength < w && 
+             runLength < 128 && 
+             pixelEquals(startX, y, startX + runLength, y)) {
+        runLength++;
+      }
+
+      if (runLength >= 3) {
+        // RLEパケット（3個以上連続する場合のみ）
+        out.push(0x80 | (runLength - 1));
+        const pixel = getPixel(startX, y);
+        out.push(pixel[0], pixel[1], pixel[2]);
+        x += runLength;
+      } else {
+        // RAWパケット
+        let rawCount = 1;
+        let nextX = x + 1;
+        
+        // 次に3個以上連続する箇所が出てくるまで、またはパケット上限まで
+        while (nextX < w && rawCount < 128) {
+          // 現在位置から3個連続チェック
+          let consecutiveCount = 1;
+          while (nextX + consecutiveCount < w && 
+                 consecutiveCount < 3 && 
+                 pixelEquals(nextX, y, nextX + consecutiveCount, y)) {
+            consecutiveCount++;
+          }
+          
+          // 3個以上連続するなら、RAWパケットを終了
+          if (consecutiveCount >= 3) {
+            break;
+          }
+          
+          rawCount++;
+          nextX++;
+        }
+
+        // RAWパケット出力
+        out.push(rawCount - 1);
+        for (let i = 0; i < rawCount; i++) {
+          const pixel = getPixel(x + i, y);
+          out.push(pixel[0], pixel[1], pixel[2]);
+        }
+        x += rawCount;
+      }
+    }
+  }
+
+  const body = new Uint8Array(out);
+  return new Blob([header, body], { type: "image/x-tga" });
+}
+
+async function saveImages() {
+  const fileName = fileNameInput.value.trim();
+  const fileFormat = fileExtList.value;
+  if (fileName === '') {
+    alert('ファイル名を入力してください。');
+    fileNameInput.classList.add('blink');
+    return;
+  }
+  if (fileFormat === '') {
+    alert('ファイル形式を選択してください。');
+    return;
+  }
+  if (processedImages.processed.length === 0) {
+    alert('保存する画像がありません。');
+    return;
+  }
+  // 確認ダイアログ
+  const ok = confirm(`「${fileName}_XXXX.${fileFormat}」という名前で保存しますか？`);
+  if (!ok) {
+    return; // キャンセルされたら処理を中止
+  }
+  // 全処理
+  let allProcessed = false;
+  for (let j = 0; j < uploadedImages.length; j++) {
+    if (!processedImages['processed'][j]?.img || updatePhase != processedImages['processed'][j]?.phase) {
+      allProcessed = false;
+      break;
+    }
+    allProcessed = true;
+  }
+  if(!allProcessed){
+    await processAllImages();
+  }
+  showStatus('ZIPファイルを生成中...', 'info');
+  
+  const zip = new JSZip();
+
+  for (let i = 0; i < processedImages.processed.length; i++) {
+    const imgData = processedImages.processed[i].img;
+    if (!imgData) continue;
+
+    canvas.width = imgData.width;
+    canvas.height = imgData.height;
+    ctx.putImageData(imgData, 0, 0);
+
+    let blob;
+    if (fileFormat === 'png') {
+      blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    } else if (fileFormat === 'tif') {
+      blob = encodeTIFF(imgData);
+    } else if (fileFormat === 'tga') {
+      blob = encodeTGA(imgData);
+    } else {
+      throw new Error('Unsupported format: ' + fileFormat);
+    }
+      
+    const base = fileNameInput.value;
+    const num  = fileInfos[i].padded;
+    const name = `${base}_${num}.${fileFormat}`;
+
+    zip.file(name, blob);
+  }
+  
+  localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
+  zip.file("config.json", JSON.stringify(globalConfig, null, 2));
+
+  const blob = await zip.generateAsync({ type: "blob" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${fileName}.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  showStatus('ZIPファイルの保存が完了しました。', 'success', 3000);
+}
+
+// コンフィグのセーブ (エクスポート)
+document.getElementById('exportColorsBtn').addEventListener('click', saveConfig);
+function saveConfig() {
+  localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(globalConfig, null, 2));
+  const dlAnchorElem = document.createElement('a');
+  dlAnchorElem.setAttribute("href", dataStr);
+  dlAnchorElem.setAttribute("download", `config_v2.json`);
+  dlAnchorElem.click(); 
+  showStatus('Configファイルの保存が完了しました。', 'success', 3000);
+}
 
 // --- ウィンドウ表示切替 ---
 let visible = true;
@@ -109,58 +474,8 @@ toggleButton.style.display = 'none';
 
 // ページ設定
 document.addEventListener('DOMContentLoaded', () => {
-  // ドラッグドロップとボタン押下によるコンフィグのロード (インポート)
-  const cfgDropZone = document.getElementById('cfg-drop-zone');
-  const importBtn = document.getElementById('importColorsBtn');
-  const fileInput = document.getElementById('configFileInput');
 
-  // ボタンを押したら非表示inputをクリック
-  importBtn.addEventListener('click', () => { fileInput.click(); });
-  /** input の change でファイルを処理 */
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) {
-      loadConfigFile(fileInput.files[0]);
-    }
-  });
-  /** ドラッグしたファイルをドロップ可能にする */
-  cfgDropZone.addEventListener('dragover', e => {
-    e.preventDefault();             // 必須：デフォルト動作（禁止カーソル）を抑止
-    cfgDropZone.classList.add('dragover');
-  });
-  cfgDropZone.addEventListener('dragleave', e => {
-    e.preventDefault();
-    cfgDropZone.classList.remove('dragover');
-  });
-  cfgDropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    cfgDropZone.classList.remove('dragover');
-    if (e.dataTransfer.files[0]) {
-      loadConfigFile(e.dataTransfer.files[0]);
-    }
-  });
-
-  // ConfigFileロード関数
-  function loadConfigFile(file) {
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const parsed = JSON.parse(e.target.result);
-        // Reset and render color blocks from the loaded config (rebuild DOM & currentConfig)
-        renderColorBlocksFromConfig(parsed);
-        updateConfig();
-        ++updatePhase;
-        prepareAndShowImage(frameIndex, showMode);
-        localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
-        showStatus('Configファイルの読み込みが完了しました。', 'success', 3000);
-      } catch (error) {
-        console.error('Error loading config:', error);
-        showStatus('Configファイルの読み込みに失敗しました。', 'error', 3000);
-      }
-    };
-    reader.readAsText(file);
-  }
+  window.ConfigEditor.init();
 
   const topContainer = document.querySelector('.top-container');
   const mainEditorPanel = document.querySelector('.main-editor-panel');
@@ -265,415 +580,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.userSelect = '';
   });
 
-  // Load local config. If none exists, create default color blocks.
-  loadLocalConfig();
-  if (!currentConfig.colorBlocks || Object.keys(currentConfig.colorBlocks).length === 0) {
-    createDefaultColorBlocks();
-  } else {
-    // Ensure DOM reflects the loaded config
-    renderColorBlocksFromConfig(currentConfig);
-  }
+  window.ConfigEditor.loadLocalConfig();
 });
-
-// 新しいカラーブロック要素を作成（削除ボタン付き）
-function createColorBlock(initialLabelColor, initialColor) {
-  const colorBlockSize = Object.keys(currentConfig.colorBlocks).length;
-  const container = document.querySelector('.color-content');
-  if (colorBlockSize != 0 && container.lastElementChild && container.lastElementChild.id == 'addColorBtn') container.lastElementChild.remove();
-
-  // Keep block relatively positioned so delete button can be placed in top-right.
-  let html = `
-    <div class="color-block" data-label="${colorBlockSize}" style="position:relative;">
-      <!-- Top-right: enable/disable checkbox -->
-      <input type="checkbox" class="color-enable" title="有効/無効" style="position:absolute; right:4px; top:4px; width:20px; height:20px;" checked />
-      <!-- Left-bottom: delete button (moved here) with red background -->
-      <button class="color-delete" title="削除" style="position:absolute; right:6px; bottom:6px; width:20px; height:20px; line-height:16px; padding:0; border-radius:3px; background:red; color:white; border:none;">×</button>
-      <div class="color-control-group">
-        <div class="picker-stack">
-          <input type="color" class="color-picker" value="${initialColor}" data-label="${colorBlockSize}" />
-          <span class="picker-arrow">▼</span>
-          <input type="color" class="color-picker label-picker" value="${initialLabelColor}" >
-        </div>
-        <div class="sliders-container">
-          <div class="slider-row">
-            <span class="slider-label">閾値　</span>
-            <input type="range" class="color-slider" min="0" max="1" step="0.01" value="0.5" data-channel="threshold"/>
-            <input type="number" class="slider-value" min="0" max="1" step="0.01" value="0.5"/>
-          </div>
-          <div class="slider-row">
-            <span class="slider-label">線検知</span>
-            <input type="range" class="color-slider" min="0" max="10" step="0.1" value="0" data-channel="log">
-            <input type="number" class="slider-value" min="0" max="10" step="0.1" value="0.0"/>
-          </div>
-          <div class="slider-row">
-            <span class="slider-label">重み　</span>
-            <input type="range" class="color-slider" min="0" max="10" step="0.1" value="1" data-channel="weight">
-            <input type="number" class="slider-value" min="0" max="10" step="0.1" value="1.0"/>
-          </div>
-        </div>
-      </div>
-    </div>
-    ${
-      colorBlockSize < 7 ? `
-        <button style="width: 50px;" id="addColorBtn" >
-          ＋
-        </button>
-      ` : ``
-    }
-  `;
-
-  container.insertAdjacentHTML('beforeend', html);
-
-  // add button (if present) will be last element - ensure it creates a new color block
-  const last = container.lastElementChild;
-  if (last && last.id === 'addColorBtn') {
-    last.addEventListener('click', () => {
-      createColorBlock('#000000', '#000000');
-    });
-  }
-
-  // initialize config entry for this block
-  const sliders = { threshold: 0.5, log: 0, weight: 1 };
-  // add enabled flag default true so checkbox state is tracked
-  currentConfig.colorBlocks[colorBlockSize] = { color: initialColor, labelColor: initialLabelColor, sliders: sliders, enabled: true };
-  applyCurrentConfig();
-  
-  // bind events
-  const block = container.querySelector(`.color-block[data-label="${colorBlockSize}"]`);
-  setupSliderListeners(block, colorBlockSize);
-  setupColorPickerListeners(block, colorBlockSize);
-
-  // delete button (confirm before deletion)
-  const delBtn = block.querySelector('.color-delete');
-  if (delBtn) {
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const ok = window.confirm("本当にこの色を削除しますか？");
-      if (ok) {
-        deleteColorBlock(colorBlockSize);
-      }
-    });
-  }
-  
-  // enable/disable checkbox listener
-  const enableCheckbox = block.querySelector('.color-enable');
-  if (enableCheckbox) {
-    // initialize checked state from config (safeguard)
-    enableCheckbox.checked = currentConfig.colorBlocks[colorBlockSize].enabled !== false;
-    enableCheckbox.addEventListener('change', () => {
-      currentConfig.colorBlocks[colorBlockSize].enabled = enableCheckbox.checked;
-      applyCurrentConfig();
-      ++updatePhase;
-      prepareAndShowImage(frameIndex, showMode);
-    });
-  }
-}
-
-/* Create the background picker block and wire its listeners.
-   The bg block provides both a color and a labelColor (styled like colorBlock pickers). */
-function createBgBlock(initialBgColor = '#ffffff', initialLabelColor = '#000000') {
-  const container = document.querySelector('.color-content');
-
-  // Remove any existing bg-block if present
-  const existing = container.querySelector('.bg-block');
-  if (existing) existing.remove();
-
-  const html = `
-    <div class="bg-block" style="background:#ffffff; display:flex; justify-content:center; align-items:center; height:80px; padding:20px; margin-right:4px;">
-      <span style="margin-right:8px;">背景</span>
-      <div class="picker-stack">
-        <input type="color" class="color-picker bg-color-picker" value="${initialBgColor}" data-label="bgColorPicker" />
-        <span class="picker-arrow">▼</span>
-        <input type="color" class="color-picker label-picker bg-label-picker" value="${initialLabelColor}" />
-      </div>
-    </div>
-  `;
-  container.insertAdjacentHTML('afterbegin', html);
-
-  // wire references and listeners
-  bgPicker = container.querySelector('.bg-color-picker');
-  bgLabelPicker = container.querySelector('.bg-label-picker');
-
-  // Initialize currentConfig properties if missing
-  if (!currentConfig) currentConfig = { bgColor: initialBgColor, bgLabelColor: initialLabelColor, colorBlocks: {} };
-  if (currentConfig.bgColor === undefined) currentConfig.bgColor = initialBgColor;
-  if (currentConfig.bgLabelColor === undefined) currentConfig.bgLabelColor = initialLabelColor;
-
-  if (bgPicker) {
-    bgPicker.value = currentConfig.bgColor;
-    bgPicker.addEventListener('input', () => {
-      currentConfig.bgColor = bgPicker.value;
-      applyCurrentConfig();
-      ++updatePhase;
-      prepareAndShowImage(frameIndex, showMode);
-    });
-  }
-  if (bgLabelPicker) {
-    bgLabelPicker.value = currentConfig.bgLabelColor || initialLabelColor;
-    bgLabelPicker.addEventListener('input', () => {
-      currentConfig.bgLabelColor = bgLabelPicker.value;
-      applyCurrentConfig();
-      ++updatePhase;
-      prepareAndShowImage(frameIndex, showMode);
-    });
-  }
-}
-
-/* Render color blocks from a config object (resets DOM and currentConfig). */
-function renderColorBlocksFromConfig(cfg) {
-  if (!cfg) return;
-  // Clone to avoid mutation
-  currentConfig = JSON.parse(JSON.stringify(cfg));
-  globalConfig = JSON.parse(JSON.stringify(cfg));
-
-  const container = document.querySelector('.color-content');
-  container.innerHTML = ''; // clear everything; we'll create bg + blocks from JS
-
-  // Create bg block (cfg may include bgLabelColor)
-  const bgColor = cfg.bgColor || '#ffffff';
-  const bgLabelColor = cfg.bgLabelColor || cfg.bgLabel || '#000000';
-  createBgBlock(bgColor, bgLabelColor);
-
-  // Recreate blocks in order
-  const entries = Object.entries(cfg.colorBlocks || {}).sort((a,b) => Number(a[0]) - Number(b[0]));
-  currentConfig.colorBlocks = {};
-  entries.forEach(([k, v]) => {
-    const labelColor = v.labelColor || v.color || '#000000';
-    const color = v.color || '#000000';
-    createColorBlock(labelColor, color);
-    const idx = Object.keys(currentConfig.colorBlocks).length - 1;
-    if (v.sliders) {
-      currentConfig.colorBlocks[idx].sliders = { ...defaultSliderValue, ...v.sliders };
-    }
-  });
-
-  updateConfig();
-}
-
-/* Create 4 default color blocks (used when no local config present) */
-function createDefaultColorBlocks() {
-  currentConfig = { bgColor: '#ffffff', bgLabelColor: '#000000', colorBlocks: {} };
-  const container = document.querySelector('.color-content');
-  container.innerHTML = ''; // wipe
-
-  // Create bg block first
-  createBgBlock(currentConfig.bgColor, currentConfig.bgLabelColor);
-
-  const defaults = [
-    { labelColor:'#000000', color:'#000000' },
-    { labelColor:'#ff0000', color:'#ff0000' },
-    { labelColor:'#00ff00', color:'#00ff00' },
-    { labelColor:'#0000ff', color:'#0000ff' },
-  ];
-
-  defaults.forEach(d => createColorBlock(d.labelColor, d.color));
-  updateConfig();
-}
-
-/* Create 4 default color blocks (used when no local config present) */
-function createDefaultColorBlocks() {
-  currentConfig.colorBlocks = {};
-  const container = document.querySelector('.color-content');
-  const bgInput = container.querySelector('input[data-label="bgColorPicker"]');
-  const bgHtml = bgInput ? bgInput.closest('div').outerHTML : '';
-  container.innerHTML = bgHtml;
-
-  const defaults = [
-    { labelColor:'#000000', color:'#000000' },
-    { labelColor:'#ff0000', color:'#ff0000' },
-    { labelColor:'#00ff00', color:'#00ff00' },
-    { labelColor:'#0000ff', color:'#0000ff' },
-  ];
-
-  defaults.forEach(d => createColorBlock(d.labelColor, d.color));
-  updateConfig();
-}
-
-/* Delete a color block by its numeric label index, then reindex and re-render */
-function deleteColorBlock(labelIndex) {
-  const container = document.querySelector('.color-content');
-  const toRemove = container.querySelector(`.color-block[data-label="${labelIndex}"]`);
-  if (!toRemove) return;
-
-  // Build new colorBlocks from remaining DOM blocks (preserve order)
-  const remaining = Array.from(container.querySelectorAll('.color-block')).filter(b => b !== toRemove);
-  const newBlocks = {};
-  remaining.forEach((b, i) => {
-    const color = b.querySelector('.color-picker')?.value || '#000000';
-    const labelColor = b.querySelector('.label-picker')?.value || color;
-    const sliders = {
-      threshold: parseFloat(b.querySelector('.color-slider[data-channel="threshold"]')?.value) || defaultSliderValue.threshold,
-      log: parseFloat(b.querySelector('.color-slider[data-channel="log"]')?.value) || defaultSliderValue.log,
-      weight: parseFloat(b.querySelector('.color-slider[data-channel="weight"]')?.value) || defaultSliderValue.weight,
-    };
-    newBlocks[i] = { color, labelColor, sliders };
-  });
-
-  // Replace currentConfig and re-render
-  currentConfig.colorBlocks = newBlocks;
-  renderColorBlocksFromConfig(currentConfig);
-  applyCurrentConfig();
-  ++updatePhase;
-  prepareAndShowImage(frameIndex, showMode);
-}
-
-/* Update existing color blocks from a cfg (used when switching between global/frame modes) */
-function updateColorBlocks(cfg){ // カラーブロック値を更新
-  const colorCfg = cfg ? cfg : globalConfig;
-  if (!colorCfg) return;
-  // If a frame config isn't provided, fall back to the globalConfig so sliders initialize from global values.
-  const sliderCfg = cfg || globalConfig || null;
-  const keys = Object.keys(currentConfig.colorBlocks);
-  currentConfig.bgColor = colorCfg.bgColor;
-  for(let i = 0; i < keys.length; ++i){ // 黒,赤,緑,青,...
-    const key = keys[i];
-    const src = (colorCfg.colorBlocks && colorCfg.colorBlocks[key]) ? colorCfg.colorBlocks[key] : null;
-    if (src) {
-      currentConfig.colorBlocks[key].color = src.color;
-      currentConfig.colorBlocks[key].labelColor = src.labelColor;
-      currentConfig.colorBlocks[key].sliders = (sliderCfg && sliderCfg.colorBlocks && sliderCfg.colorBlocks[key]) ? { ...sliderCfg.colorBlocks[key].sliders } : { ...defaultSliderValue };
-    }
-  }
-  updateConfig();
-  pColorEditorMode = colorEditorMode;
-}
-
-// currentConfig に表示中の値を代入 bgColor, colorBlks{col, lcol, sliders{...}}
-function updateConfig(){
-  // update bg pickers if present
-  if (currentConfig.bgColor) {
-    if (bgPicker) bgPicker.value = currentConfig.bgColor;
-  }
-  if (currentConfig.bgLabelColor !== undefined) {
-    if (bgLabelPicker) bgLabelPicker.value = currentConfig.bgLabelColor;
-  }
-
-  if (currentConfig.colorBlocks) {
-    for (const [label, colorBlock] of Object.entries(currentConfig.colorBlocks)) {
-      currentConfig.colorBlocks[label].color = colorBlock.color;
-      const picker = document.querySelector(`.color-block[data-label="${label}"] .color-picker`);
-      if (picker) picker.value = colorBlock.color;
-      
-      currentConfig.colorBlocks[label].labelColor = colorBlock.labelColor;
-      const arrow = picker.nextElementSibling;
-      const labelPicker = arrow ? arrow.nextElementSibling : null;
-      if (labelPicker) labelPicker.value = colorBlock.labelColor;
-      if (colorBlock.sliders) {
-        for (const [param, value] of Object.entries(colorBlock.sliders)) { // param ... th, log, wei | value ... 0.5, 0, 1.0
-          currentConfig.colorBlocks[label].sliders[param] = value;
-          const slider = document.querySelector(`.color-block[data-label="${label}"] .color-slider[data-channel="${param}"]`);
-          const number = slider?.parentElement.querySelector('.slider-value');
-          // Slider range switching between global/frame removed.
-          // Sliders use their stored absolute values; ranges remain the global ranges in UI.
-          if (slider) slider.value = value;
-          if (number) number.value = value;
-        }
-      }
-      // Sync enabled checkbox state if present
-      const enableCheckbox = document.querySelector(`.color-block[data-label="${label}"] .color-enable`);
-      if (enableCheckbox) {
-        // default to true unless explicitly false in cfg
-        enableCheckbox.checked = (colorBlock.enabled === undefined) ? true : !!colorBlock.enabled;
-        // ensure config has the enabled flag present
-        currentConfig.colorBlocks[label].enabled = enableCheckbox.checked;
-      }
-    }
-  }
-  applyCurrentConfig();
-}
-
-// スライダーの処理
-function setupSliderListeners(container, label) {
-  const sliderRows = container.querySelectorAll('.slider-row');
-  sliderRows.forEach((row, i) => {
-    const slider = row.querySelector('.color-slider');
-    const number = row.querySelector('.slider-value');
-    // スライダー変更による更新
-    slider.addEventListener('input', () => {
-      number.value = slider.value;
-      updateChannel(label, slider.dataset.channel, slider.value);
-    });
-    // 数値インプット変更による更新
-    number.addEventListener('input', () => {
-      let v = parseFloat(number.value);
-      const min = parseFloat(slider.min);
-      const max = parseFloat(slider.max);
-
-      if (isNaN(v)) v = min;
-      else v = Math.min(max, Math.max(min, v));
-
-      slider.value = v;
-      number.value = v;
-
-      updateChannel(label, slider.dataset.channel, slider.value);
-    });
-    number.addEventListener('wheel', onWheelNum, {passive: false});
-  });
-}
-
-function updateChannel(label, channel, value){
-  const sliders = currentConfig.colorBlocks[label].sliders;
-  sliders[channel] = parseFloat(value);
-  console.log(`スライダー更新: ${label} ${channel} = ${sliders[channel]}`);
-  applyCurrentConfig();
-  ++updatePhase;
-  prepareAndShowImage(frameIndex, showMode);
-}
-
-function onWheelNum(e) {
-  e.preventDefault();
-
-  const step = parseFloat(this.step) || 1;
-  const min  = this.min !== '' ? parseFloat(this.min) : -Infinity;
-  const max  = this.max !== '' ? parseFloat(this.max) :  Infinity;
-  let   val  = parseFloat(this.value) || 0;
-
-  val += e.deltaY < 0 ? step: -step;
-  val = Math.min(max, Math.max(min, val));
-  this.value = val.toFixed(getDecimalPlaces(step));
-
-  this.dispatchEvent(new Event('input'));
-}
-
-function getDecimalPlaces(num) {
-  const s = num.toString().split('.');
-  return s[1] ? s[1].length : 0;
-}
-
-// カラーピッカーの処理
-function setupColorPickerListeners(container, label) {
-  const picker = container.querySelector('.color-picker');
-  picker.addEventListener('input', () => {
-    currentConfig.colorBlocks[label].color = picker.value;
-    console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].color}`);
-    applyCurrentConfig();
-    ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
-  });
-  const arrow = picker.nextElementSibling;
-  const labelPicker = arrow.nextElementSibling;
-  labelPicker.addEventListener('input', () => {
-    currentConfig.colorBlocks[label].labelColor = labelPicker.value;
-    console.log(`カラーピッカー更新: ${label} = ${currentConfig.colorBlocks[label].labelColor}`);
-    applyCurrentConfig();
-    ++updatePhase;
-    prepareAndShowImage(frameIndex, showMode);
-  });
-}
-
-function applyCurrentConfig(){ // currentConfig を globalConfig/frameConfigs に適応
-  const strCfg = JSON.parse(JSON.stringify(currentConfig));
-  if(cfgToggleStates.some(Boolean)){
-    for(let i = 0; i < cfgToggleStates.length; ++i){
-      if(cfgToggleStates[i]) {
-        frameConfigs[i] = strCfg;
-        frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
-      }
-    }
-  } else {
-    globalConfig = strCfg;
-  }
-}
 
 function applyCurrentDrawing(){
   drawImages[frameIndex] = dctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -967,10 +875,12 @@ function updateCfgBtns(){
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
     colorEditorMode = 'global';
     updateColorBlocks(globalConfig);
+    pColorEditorMode = colorEditorMode;
   } else {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
     colorEditorMode = 'frames';
     updateColorBlocks(frameConfigs[frameCfgIndex]);
+    pColorEditorMode = colorEditorMode;
   }
 }
 
@@ -1301,3 +1211,4 @@ function screenToCanvas(clientX, clientY) {
 }
 
 initWebGPU();
+
