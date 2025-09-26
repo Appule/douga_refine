@@ -147,6 +147,28 @@ body, html {
   transition: background-color 0.1s, border-color 0.1s;
 }
 
+.color-enable {
+  position:absolute;
+  right:4px;
+  top:4px;
+  width:20px;
+  height:20px;
+}
+
+.color-delete {
+  position:absolute;
+  right:6px;
+  bottom:6px;
+  width:20px;
+  height:20px;
+  line-height:16px;
+  padding:0;
+  border-radius:3px;
+  background:red;
+  color:white;
+  border:none;
+}
+
 /* ドラッグオーバー時のハイライト */
 #cfg-drop-zone.dragover {
   background-color: #eef;
@@ -160,6 +182,7 @@ body, html {
 }
 
 .color-block {
+  position:relative;
   flex-shrink: 0;
   width: 365px;
   height: 120px;

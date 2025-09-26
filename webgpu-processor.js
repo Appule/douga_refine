@@ -21,8 +21,6 @@ function preparePipelines(imageData, drawImageData, cfg) {
   const width = imageData.width;
   const height = imageData.height;
   const pixelCount = width * height;
-  const colBlks = cfg.colorBlocks;
-  const cbKeys = Object.keys(cfg.colorBlocks);
  
   const uniSize = Math.ceil((8 * 8 + 4) / 4) * 4;
   const buffers = {
@@ -62,26 +60,19 @@ function preparePipelines(imageData, drawImageData, cfg) {
   const f32View = new Float32Array(uniformArray);
   u32View[0] = width;
   u32View[1] = height;
-  const bgCol = hexToInt32(cfg.bgColor + `0${cbKeys.length}`);
+  const bgCol = hexToInt32(cfg.bgColor + `0${cfg.colorBlocks.length}`);
   const bgLCol = hexToInt32(cfg.bgLabelColor);
   u32View[2] = bgCol;
   u32View[3] = bgLCol;
 
-  const [firstKey, ...restKeys] = cbKeys;
-  const sortedRest = restKeys
-    .map(key => {
-      const hex    = cfg.colorBlocks[key].color;
-      const colInt = hexToInt32(hex);
-      return { key, hue: hexToHue(colInt) };
-    })
-    .sort((a, b) => a.hue - b.hue)
-    .map(obj => obj.key);
-  const sortedKeys = [firstKey, ...sortedRest];
- 
+  const sorted = [
+    cfg.colorBlocks[0], // インデックス0は固定
+    ...cfg.colorBlocks.slice(1).sort((a, b) => hexToHue(a.color) - hexToHue(b.color))
+  ];
+
   const base = 4;
-  for(let i = 0; i < sortedKeys.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
-    const k = sortedKeys[i];
-    const src = colBlks[k];
+  for(let i = 0; i < sorted.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
+    const src = sorted[i];
   
     f32View[i*8 + base + 0] = hexToInt32(src.color);
     // If the color block is disabled (enabled === false), use the background label color

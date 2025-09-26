@@ -47,7 +47,7 @@ let cfgIsPressed = false; // コンフィグボタンの押下状態
 window.AppState = {
   showMode: 'processed', // 現在の描画モード
   cursorMode: 'camera', // 現在のカーソルモード
-  currentConfig: { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: {} }, // 表示中のコンフィグデータ
+  currentConfig: { bgColor: '#ffffff', bgLabelColor: '#ffffff', colorBlocks: [] }, // 表示中のコンフィグデータ
   globalConfig: { }, // グローバルコンフィグ
   frameConfigs: [ ], // フレームコンフィグ
   updatePhase: 0, // コンフィグの状態
@@ -91,8 +91,6 @@ const previewCanvas = document.getElementById('previewCanvas');
 const pctx = previewCanvas.getContext('2d');
 // カラー編集 (下部エリア)
 const colorEditorTitle = document.getElementById("color-editor-title");
-let bgPicker = null;
-let bgLabelPicker = null;
 
 // ページ設定
 document.addEventListener('DOMContentLoaded', () => {
@@ -201,8 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.cursor = 'default';
     document.body.style.userSelect = '';
   });
-
-  window.ConfigEditor.loadLocalConfig();
 });
 
 function applyCurrentDrawing(){
@@ -351,22 +347,28 @@ dropZone.addEventListener("drop", (e) => {
     cbtn.classList.add("config-btn");
     cbtn.innerHTML = '';
     cbtn.addEventListener("mousedown", (event) => {
-      cfgIsPressed |= event.button == 0 ? 1 : 0;
-      cbtn.classList.add('active');
-      if(event.shiftKey) {
-        cfgToggleStates.fill(false);
-        for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
-          cfgToggleStates[i] = true;
+      if(event.button == 0) {
+        cfgIsPressed = true;
+        cbtn.classList.add('active');
+        if(event.shiftKey) {
+          cfgToggleStates.fill(false);
+          for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
+            cfgToggleStates[i] = true;
+          }
+        }
+        else if(event.ctrlKey) {
+          cfgToggleStates[index] = !cfgToggleStates[index];
+          frameCfgIndex = index;
+        }
+        else {
+          cfgToggleStates.fill(false);
+          cfgToggleStates[index] = true;
+          frameCfgIndex = index;
         }
       }
-      else if(event.ctrlKey) {
-        cfgToggleStates[index] = !cfgToggleStates[index];
-        frameCfgIndex = index;
-      }
-      else {
+      else if(event.button == 2) {
+        cfgIsPressed = false;
         cfgToggleStates.fill(false);
-        cfgToggleStates[index] = true;
-        frameCfgIndex = index;
       }
       updateCfgBtns();
     });
@@ -498,12 +500,12 @@ function updateCfgBtns(){
   if (noActive) {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
     colorEditorMode = 'global';
-    window.ConfigEditor.updateColorBlocks(globalConfig);
+    window.ConfigEditor.updateConfig(globalConfig, false);
     pColorEditorMode = colorEditorMode;
   } else {
     colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
     colorEditorMode = 'frames';
-    window.ConfigEditor.updateColorBlocks(frameConfigs[frameCfgIndex]);
+    window.ConfigEditor.updateConfig(frameConfigs[frameCfgIndex], false);
     pColorEditorMode = colorEditorMode;
   }
 }
