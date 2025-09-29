@@ -94,32 +94,41 @@
   }
 
   async function loadIMG(file) {
-    // Read as DataURL, draw into an offscreen canvas and return ImageData
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
+    // Convert generic image File (png/jpeg/gif/...) into ImageData.
+    // Use createImageBitmap when available (faster, avoids creating DOM Image).
+    if (typeof createImageBitmap === 'function') {
+      const bitmap = await createImageBitmap(file);
+      const width = bitmap.width;
+      const height = bitmap.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      return ctx.getImageData(0, 0, width, height);
+    } else {
+      // Fallback to Image element
+      return await new Promise((resolve, reject) => {
         const img = new Image();
-        img.src = event.target.result;
-        img.onload = () => {
-          const width = img.naturalWidth;
-          const height = img.naturalHeight;
-          // Ensure offscreen canvas is available and sized
-          offscreenCanvas.width = width;
-          offscreenCanvas.height = height;
-          osctx.clearRect(0, 0, width, height);
-          osctx.drawImage(img, 0, 0, width, height);
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
           try {
-            const imageData = osctx.getImageData(0, 0, width, height);
-            resolve(imageData);
-          } catch (err) {
-            reject(err);
+            const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            resolve(id);
+          } catch (e) {
+            reject(e);
           }
         };
-        img.onerror = reject;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+        img.onerror = function(e){
+          reject(new Error('Failed to load image'));
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
   }
 
   window.ImageLoader = {

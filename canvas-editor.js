@@ -32,11 +32,11 @@
     });
 
     // 画像アップロードイベント
-    dropZone.addEventListener("drop", (e) => {
+    dropZone.addEventListener("drop", async (e) => {
       e.preventDefault();
       showStatus('画像を読み込み中...', 'info');
       dropZone.classList.remove("dragover");
-
+  
       // ex) A_0001~0088 => [{ file, num:0001~0088, num:1~88, basename:A }, ...]
       const fileInfos = Array.from(e.dataTransfer.files)
         .filter(f => {
@@ -45,30 +45,30 @@
         .map(f => {
           const baseNameOnly = f.name.replace(/\.[^/.]+$/, ""); // 拡張子を除去
           const lastUnderscore = baseNameOnly.lastIndexOf("_");
-          const basename = lastUnderscore !== -1 
-            ? baseNameOnly.substring(0, lastUnderscore) 
+          const basename = lastUnderscore !== -1
+            ? baseNameOnly.substring(0, lastUnderscore)
             : baseNameOnly;
-
+  
           const m = f.name.match(/(\d{4})/);
           const padded = m ? m[1] : "";
           const num = m ? parseInt(m[1], 10) : Infinity;
-
+  
           return { file: f, padded, num, basename };
         })
         .sort((a, b) => a.num - b.num);
       
       // フロートパネルのファイル名欄を更新
       window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
-
+  
       // 画像データキャッシュ配列を生成
       window.Core.initImageDatas(fileInfos.length);
-
+  
       // フレームメニューを初期化
       window.FrameManager.init(fileInfos);
-
+  
       // キャンバスとキャッシュ画像を初期化
-      initCanvas(fileInfos);
-
+      await initCanvas(fileInfos);
+  
       // 読み込み完了後に描画処理
       window.Core.prepareAndShowImage();
     });
@@ -178,58 +178,57 @@
   }
   
   // 画像アップロード時
-  const initCanvas = function(fileInfos){
+  const initCanvas = async function(fileInfos){
     // 各ファイルの処理
-    fileInfos.forEach((info, index) => {
+    for (let index = 0; index < fileInfos.length; index++) {
+      const info = fileInfos[index];
       const ext = info.file.name.split('.').pop().toLowerCase();
       // Obtain ImageData from file (TGA/TIFF/other) then draw to canvas & cache
-      (async () => {
-        try {
-          let imgData;
-          if (ext === 'tga') {
-            imgData = await window.ImageLoader.loadTGA(info.file);
-          } else if (ext === 'tif' || ext === 'tiff') {
-            imgData = await window.ImageLoader.loadTIFF(info.file);
-          } else {
-            imgData = await window.ImageLoader.loadIMG(info.file);
-          }
-
-          // イメージデータを保存
-          window.Core.setUploadedImage(imgData, index);
-          
-          if (index === 0) {
-            // キャンバスサイズを最初の画像サイズに設定
-            canvas.width = imgData.width;
-            canvas.height = imgData.height;
-            canvas.style.width = canvas.width + 'px';
-            canvas.style.height = canvas.height + 'px';
-            offscreenCanvas.width = canvas.width;
-            offscreenCanvas.height = canvas.height;
-            drawCanvas.width = canvas.width;
-            drawCanvas.height = canvas.height;
-            drawCanvas.style.width = canvas.width + 'px';
-            drawCanvas.style.height = canvas.height + 'px';
-            overlayCanvas.width = canvas.width;
-            overlayCanvas.height = canvas.height;
-            overlayCanvas.style.width = canvas.width + 'px';
-            overlayCanvas.style.height = canvas.height + 'px';
-            
-            resetCanvasOffset();
-            
-            dctx.fillStyle = '#FFFFFF';
-            dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
-          }
-
-          if (index === fileInfos.length - 1) {
-            showStatus(`${ext.toUpperCase()}画像が読み込まれました。`, 'success', 3000);
-          }
-
-        } catch (err) {
-          console.error('Error loading image file:', err);
-          showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
+      try {
+        let imgData;
+        if (ext === 'tga') {
+          imgData = await window.ImageLoader.loadTGA(info.file);
+        } else if (ext === 'tif' || ext === 'tiff') {
+          imgData = await window.ImageLoader.loadTIFF(info.file);
+        } else {
+          imgData = await window.ImageLoader.loadIMG(info.file);
         }
-      })();
-    });
+  
+        // イメージデータを保存
+        window.Core.setUploadedImage(imgData, index);
+        
+        if (index === 0) {
+          // キャンバスサイズを最初の画像サイズに設定
+          canvas.width = imgData.width;
+          canvas.height = imgData.height;
+          canvas.style.width = canvas.width + 'px';
+          canvas.style.height = canvas.height + 'px';
+          offscreenCanvas.width = canvas.width;
+          offscreenCanvas.height = canvas.height;
+          drawCanvas.width = canvas.width;
+          drawCanvas.height = canvas.height;
+          drawCanvas.style.width = canvas.width + 'px';
+          drawCanvas.style.height = canvas.height + 'px';
+          overlayCanvas.width = canvas.width;
+          overlayCanvas.height = canvas.height;
+          overlayCanvas.style.width = canvas.width + 'px';
+          overlayCanvas.style.height = canvas.height + 'px';
+          
+          resetCanvasOffset();
+          
+          dctx.fillStyle = '#FFFFFF';
+          dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+  
+        if (index === fileInfos.length - 1) {
+          showStatus(`${ext.toUpperCase()}画像が読み込まれました。`, 'success', 3000);
+        }
+  
+      } catch (err) {
+        console.error('Error loading image file:', err);
+        showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
+      }
+    }
     
     // 最初の文言を削除
     const h1 = editorContent.querySelector('h1');
