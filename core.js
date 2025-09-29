@@ -130,36 +130,30 @@
     frameConfigs = new Array(num).fill(0);
   }
 
-  const setUploadedImage = function(img, idx = null){ 
-    idx = idx || frameIndex;
+  const setUploadedImage = function(img, idx = frameIndex){ 
     uploadedImages[idx] = img;
   }
-  const getUploadedImage = function(idx = null){ 
-    idx = idx || frameIndex;
+  const getUploadedImage = function(idx = frameIndex){ 
     return uploadedImages[idx];
   }
 
-  const setProcessedData = function(data, idx = null){ 
-    idx = idx || frameIndex;
+  const setProcessedData = function(data, idx = frameIndex){ 
     processedImages[idx].pressure = data.pressure;
     processedImages[idx].log = data.log;
     processedImages[idx].processed = data.processed;
     processedImages[idx].phase = data.phase;
   }
-  const getProcessedData = function(idx = null){ 
-    idx = idx || frameIndex;
+  const getProcessedData = function(idx = frameIndex){ 
     return processedImages[idx];
   }
 
-  const setDrawImage = function(img, idx = null){ 
-    idx = idx || frameIndex;
+  const setDrawImage = function(img, idx = frameIndex){ 
     drawImages[idx] = img;
     
     processedImages[idx].phase--;
     prepareAndShowImage(idx);
   }
-  const getDrawImage = function(idx = null){ 
-    idx = idx || frameIndex;
+  const getDrawImage = function(idx = frameIndex){ 
     return drawImages[idx];
   }
 
@@ -189,7 +183,7 @@
     configPhase++;
     prepareAndShowImage();
   }
-  const getGlobalConfig = function(){ return globalConfig; }
+  const getGlobalConfig = function(){ return JSON.parse(JSON.stringify(globalConfig)); }
 
   const setFrameConfigs = function(cfg, toggles){
     for(let i = 0; i < frameConfigs.length; ++i) {
@@ -201,8 +195,7 @@
     }
     prepareAndShowImage();
   }
-  const getFrameConfig = function(idx){
-    idx = idx || frameIndex;
+  const getFrameConfig = function(idx = frameIndex){
     return frameConfigs[idx];
   }
 
@@ -215,8 +208,7 @@
 
 
   // 画像処理・描画関数
-  async function prepareAndShowImage(idx = null) {
-    const i = idx || frameIndex;
+  async function prepareAndShowImage(i = frameIndex) {
     if (!uploadedImages[i]) return;
 
     if (showMode === 'original') {

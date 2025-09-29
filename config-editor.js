@@ -1,12 +1,15 @@
 (function() {
   // initialize config entry for this block
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
+  // Html要素
+  const importBtn = document.getElementById('importColorsBtn');
+  const fileInput = document.getElementById('configFileInput');
+  const fileNameInput = document.getElementById('configFileNameInput');
+  // 現在のコンフィグデータ
+  let currentConfig = { };
 
   // カラー編集ウィンドウの初期設定
   const init = function() {
-    // インポートボタン
-    const importBtn = document.getElementById('importColorsBtn');
-    const fileInput = document.getElementById('configFileInput');
     importBtn.addEventListener('click', () => { fileInput.click(); });
     /** file input アップロード時ファイルを処理 */
     fileInput.addEventListener('change', () => {
@@ -14,6 +17,10 @@
         loadConfigFile(fileInput.files[0]);
       }
     });
+    fileNameInput.addEventListener('change', () => {
+      currentConfig.fileName = fileNameInput.value;
+      colorBlocksUpdated(false);
+    })
     /** ドラッグ&ドロップでファイル処理 */
     const cfgDropZone = document.getElementById('cfg-drop-zone');
     cfgDropZone.addEventListener('dragover', e => {
@@ -45,8 +52,7 @@
     const parsed = JSON.parse(localConfig);
     if (localConfig) {
       try {
-        updateConfig(parsed);
-        updateCfgElm(parsed);
+        updateConfig(parsed, true);
         showStatus('前回のConfigを復元しました。', 'success', 3000);
       } catch (error) {
         console.error('Error loading local config:', error);
@@ -58,14 +64,14 @@
   // ConfigFileロード関数
   function loadConfigFile(file) {
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const parsed = JSON.parse(e.target.result);
       try {
+        const fileName = file.name.split(".")[0];
+        parsed.fileName = fileName;
         localStorage.setItem("localConfigData", JSON.stringify(parsed));
-        updateConfig(parsed);
-        updateCfgElm(parsed);
+        updateConfig(parsed, true);
         showStatus('Configファイルの読み込みが完了しました。', 'success', 3000);
       } catch (error) {
         console.error('Error loading config:', error);
@@ -77,11 +83,11 @@
 
   // コンフィグのセーブ (エクスポート)
   function saveConfig() {
-    localStorage.setItem("localConfigData", JSON.stringify(window.ConfigEditor.currentConfig));
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.ConfigEditor.currentConfig, null, 2));
+    localStorage.setItem("localConfigData", JSON.stringify(currentConfig));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
-    dlAnchorElem.setAttribute("download", `config_v2.json`);
+    dlAnchorElem.setAttribute("download", `${currentConfig.fileName}.json`);
     dlAnchorElem.click(); 
     showStatus('Configファイルの保存が完了しました。', 'success', 3000);
   }
@@ -167,11 +173,11 @@
     });
 
     // カラーピッカーのイベント
-    mainPicker.addEventListener('input', () => {
+    mainPicker.addEventListener('change', () => {
       console.log(`サンプルカラー更新: ${mainPicker.value}`);
       colorBlocksUpdated(true);
     });
-    labelPicker.addEventListener('input', () => {
+    labelPicker.addEventListener('change', () => {
       console.log(`ラベルカラー更新: ${labelPicker.value}`);
       colorBlocksUpdated(true);
     });
@@ -254,17 +260,19 @@
     cfgElm.bgPicker = container.querySelector('.bg-color-picker');
     cfgElm.bgLabelPicker = container.querySelector('.bg-label-picker');
 
-    cfgElm.bgPicker.addEventListener('input', () => {
-      console.log(`背景カラー更新: ${window.ConfigEditor.currentConfig.bgColor}`);
+    cfgElm.bgPicker.addEventListener('change', () => {
+      console.log(`背景カラー更新: ${currentConfig.bgColor}`);
+      colorBlocksUpdated(true);
     });
-    cfgElm.bgLabelPicker.addEventListener('input', () => {
-      console.log(`背景ラベルカラー更新: ${window.ConfigEditor.currentConfig.bgLabelColor}`);
+    cfgElm.bgLabelPicker.addEventListener('change', () => {
+      console.log(`背景ラベルカラー更新: ${currentConfig.bgLabelColor}`);
+      colorBlocksUpdated(true);
     });
   }
 
   // configを更新・描画
   const updateConfig = function(cfg, isEdited = false){
-    window.ConfigEditor.currentConfig = cfg;
+    currentConfig = cfg;
     if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     updateCfgElm(cfg);
   }
@@ -273,6 +281,8 @@
   const updateCfgElm = function(cfg){
     cfgElm.bgPicker.value = cfg.bgColor;
     cfgElm.bgLabelPicker.value = cfg.bgLabelColor;
+
+    fileNameInput.value = cfg.fileName;
 
     if(cfg.colorBlocks.length != cfgElm.colorBlocks.length) {
       cfg.colorBlocks.forEach((cb, i) => {
@@ -299,6 +309,8 @@
     cfg.bgColor = cfgElm.bgPicker.value;
     cfg.bgLabelColor = cfgElm.bgLabelPicker.value;
 
+    cfg.fileName = fileNameInput.value;
+
     cfg.colorBlocks = Array(cfgElm.colorBlocks.length).fill(0).map((_) => { return {sliders:{}, numbers:{}} });
     cfgElm.colorBlocks.forEach((cb, i) => {
       cfg.colorBlocks[i].color = cb.colorPicker.value;
@@ -309,7 +321,7 @@
       cfg.colorBlocks[i].enabled = cb.checkbox.checked;
     });
 
-    window.ConfigEditor.currentConfig = cfg;
+    currentConfig = cfg;
     if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
   }
 
