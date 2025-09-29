@@ -129,11 +129,14 @@
       btn.style.fontSize = "14px";
       btn.style.color = 'white';
 
-      btn.addEventListener('click', () => {
-        if (typeof onClick === 'function') onClick();
-      });
+      if(!draggable) {
+        btn.addEventListener('click', () => {
+          if (typeof onClick === 'function') onClick();
+        });
+      }
       btn.addEventListener('mousedown', (event) => {
         this.windowIsClicked |= event.button == 0 ? 1 : 0;
+        if(typeof onClick === 'function' && draggable) onClick();
         btn.classList.add('active');
       });
       btn.addEventListener('mouseup', (event) => {
@@ -345,14 +348,14 @@
     fileNameInput.classList.add('blink');
 
     // 表示切替ボタン
-    windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => changeShowMode('original'), true, 'rgb(0, 185, 40)');
-    windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => changeShowMode('processed'), true, 'rgb(0, 185, 40)');
-    windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => changeShowMode('pressure'), true);
-    windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => changeShowMode('log'), true);
+    windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => window.Core.setShowMode('original'), true, 'rgb(0, 185, 40)');
+    windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => window.Core.setShowMode('processed'), true, 'rgb(0, 185, 40)');
+    windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => window.Core.setShowMode('pressure'), true);
+    windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => window.Core.setShowMode('log'), true);
 
     // その他
     const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
-    windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.AppState.cursorMode = modeList[e]; }, 'rgba(89, 98, 219, 1)');
+    windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.cursorMode = modeList[e]; }, 'rgba(89, 98, 219, 1)');
     allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', processAllImages, false, 'rgb(0, 153, 221)');
     fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 'tga'], () => {}, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fas fa-file-download"></i> 保存', () => saveAllImages(processedImages.processed), false, 'rgb(0, 153, 221)');
@@ -375,6 +378,22 @@
       updateFilenameInput: updateFilenameInput,
       allProcBtn: allProcBtn,
     }
+    
+    // Keyboard shortcuts: showMode toggle
+    document.addEventListener('keydown', (e) => {
+      // Ignore when typing in inputs/textareas
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+      const key = e.key;
+
+      // Toggle showMode: 'q' toggles between 'processed' and 'original'
+      if (key.toLowerCase() === 'q' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        window.Core.setShowMode((window.Core.getShowMode() === 'processed') ? 'original' : 'processed');
+        return;
+      }
+    });
   }
 
   const updateFilenameInput = function(fileName){
@@ -383,11 +402,11 @@
   }
 
   const processAllImages = async function(){
-    if(window.AppState.showMode === 'original') await changeShowMode('processed');
+    if(window.Core.showMode === 'original') await window.Core.setShowMode('processed');
     for (let i = 0; i < uploadedImages.length; i++) {
-      await prepareAndShowImage(i, window.AppState.showMode);
+      await window.Core.prepareAndShowImage(i);
     }
-    await prepareAndShowImage(frameIndex, window.AppState.showMode);
+    await window.Core.prepareAndShowImage();
     showStatus('全画像の処理を実行しました。', 'success', 3000);
   }
 
@@ -415,7 +434,7 @@
     // 全処理
     let allProcessed = false;
     for (let j = 0; j < uploadedImages.length; j++) {
-      if (!images[j]?.img || window.AppState.updatePhase != images[j]?.phase) {
+      if (!images[j]?.img || window.ConfigEditor.configPhase != images[j]?.phase) {
         allProcessed = false;
         break;
       }
@@ -574,12 +593,6 @@
 
     const body = new Uint8Array(out);
     return new Blob([header, body], { type: "image/x-tga" });
-  }
-
-  // --- float panel ---
-  const changeShowMode = function(mode) {
-    window.AppState.showMode = mode;
-    prepareAndShowImage(frameIndex, window.AppState.showMode);
   }
 
   init();

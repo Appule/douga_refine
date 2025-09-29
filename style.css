@@ -89,7 +89,7 @@ body, html {
 }
 
 .frame-btn {
-  flex: 0 0 60%;
+  flex: 0 0 70%;
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -102,7 +102,7 @@ body, html {
 }
 
 .config-btn {
-  flex: 0 0 20%;
+  flex: 0 0 30%;
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -110,20 +110,6 @@ body, html {
   border: 1px solid #ccc;
   color: #fff;
   background-color: rgb(230, 129, 71);
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
-}
-
-.draw-btn {
-  flex: 0 0 20%;
-  height: 40px;
-  font-size: 14px;
-  padding: 5px;
-  margin: 0px 0;
-  border: 1px solid #ccc;
-  color: #fff;
-  background-color: rgb(172, 71, 230);
   border-radius: 4px;
   cursor: pointer;
   text-align: center;

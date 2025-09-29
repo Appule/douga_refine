@@ -209,77 +209,59 @@ function preparePipelines(imageData, drawImageData, cfg) {
   return { buffers, steps, width, height };
 }
 
-let gpuProcessing = false;
 async function processImage(imageData, drawImageData, cfg, idx) {
   if (!device || !imageData) return showStatus('準備が整っていません', 'error', 3000);
-  if (gpuProcessing) return;
-  gpuProcessing = true;
   showStatus('<div class="loading"><div class="spinner"></div>WebGPUで処理中...</div>');
-  try {
-    const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, cfg);
+  const { buffers, steps, width, height } = preparePipelines(imageData, drawImageData, cfg);
 
-    for (const step of steps) {
-      const encoder = await runShader(step.code, buffers, step.bindings, width, height);
-      device.queue.submit([encoder.finish()]);
-    }
-    
-    // モードと対応する readback バッファを定義 // [modename]: [readbackBufferName]
-    const modeToBuffer = {
-      pressure: "readbackPressure",
-      log: "readbackLoG",
-      processed: "readback",
-      // DEBUG: "readbackDEB",
-    };
-
-    const encoder = device.createCommandEncoder();
-    // 処理結果を readback バッファにコピー // [outputBufferName, readbackBufferName]
-    const copyMap = [
-      ["pressureOut", "readbackPressure"],
-      ["logOut", "readbackLoG"],
-      ["output", "readback"],
-      // ["DEBUG", "readbackDEB"],
-    ];
-
-    for (const [src, dst] of copyMap) {
-      encoder.copyBufferToBuffer(buffers[src], 0, buffers[dst], 0, width * height * 4);
-    }
+  for (const step of steps) {
+    const encoder = await runShader(step.code, buffers, step.bindings, width, height);
     device.queue.submit([encoder.finish()]);
-
-    for(const key of Object.keys(modeToBuffer)){
-      const bufferKey = modeToBuffer[key];
-      const buffer = buffers[bufferKey];
-      // 読み込み
-      await buffer.mapAsync(GPUMapMode.READ);
-      const result = new Uint32Array(buffer.getMappedRange());
-      // 表示
-      cacheProcessedImage(result, width, height);
-      // 後処理
-      buffer.unmap();
-
-      processedImages[key][idx] = {
-        img: osctx.getImageData(0, 0, canvas.width, canvas.height),
-        phase: window.AppState.updatePhase,
-      };
-    }
-    
-    showStatus('処理が完了しました', 'success', 3000);
-  } finally {
-    gpuProcessing = false;
   }
-}
+  
+  // モードと対応する readback バッファを定義 // [modename]: [readbackBufferName]
+  const modeToBuffer = {
+    pressure: "readbackPressure",
+    log: "readbackLoG",
+    processed: "readback",
+    // DEBUG: "readbackDEB",
+  };
 
-// ImageData保存
-function cacheProcessedImage(outputArray, width, height) {
-  // Uint32Array か Uint8Array かを判別して Uint8ClampedArray に変換
-  let u8;
-  if (outputArray instanceof Uint32Array) {
-    u8 = new Uint8ClampedArray(outputArray.buffer);
-  } else {
-    // denoise 後は Uint8Array なのでそのまま
-    u8 = new Uint8ClampedArray(outputArray.buffer);
+  const encoder = device.createCommandEncoder();
+  // 処理結果を readback バッファにコピー // [outputBufferName, readbackBufferName]
+  const copyMap = [
+    ["pressureOut", "readbackPressure"],
+    ["logOut", "readbackLoG"],
+    ["output", "readback"],
+    // ["DEBUG", "readbackDEB"],
+  ];
+
+  for (const [src, dst] of copyMap) {
+    encoder.copyBufferToBuffer(buffers[src], 0, buffers[dst], 0, width * height * 4);
   }
-  const imageData = new ImageData(u8, width, height);
-  osctx.putImageData(imageData, 0, 0);
+  device.queue.submit([encoder.finish()]);
+
+  const processedData = {};
+  for(const key of Object.keys(modeToBuffer)){
+    const bufferKey = modeToBuffer[key];
+    const buffer = buffers[bufferKey];
+    // 読み込み
+    await buffer.mapAsync(GPUMapMode.READ);
+    const mappedRange = buffer.getMappedRange();
+    const result = new Uint8Array(mappedRange);
+    // コピー
+    const copy = new Uint8ClampedArray(result);
+    // 保存
+    const resImageData = new ImageData(copy, width, height);
+    processedData[key] = resImageData;
+    // 後処理
+    buffer.unmap();
+  }
+
+  processedData.phase = window.Core.getConfigPhase();
+  window.Core.setProcessedData(processedData, idx);
+  
+  showStatus('処理が完了しました', 'success', 3000);
 }
 
 // --- GPU処理実行 ---

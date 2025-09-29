@@ -77,8 +77,8 @@
 
   // コンフィグのセーブ (エクスポート)
   function saveConfig() {
-    localStorage.setItem("localConfigData", JSON.stringify(window.AppState.currentConfig));
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.AppState.currentConfig, null, 2));
+    localStorage.setItem("localConfigData", JSON.stringify(window.ConfigEditor.currentConfig));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.ConfigEditor.currentConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
     dlAnchorElem.setAttribute("download", `config_v2.json`);
@@ -255,16 +255,16 @@
     cfgElm.bgLabelPicker = container.querySelector('.bg-label-picker');
 
     cfgElm.bgPicker.addEventListener('input', () => {
-      console.log(`背景カラー更新: ${window.AppState.currentConfig.bgColor}`);
+      console.log(`背景カラー更新: ${window.ConfigEditor.currentConfig.bgColor}`);
     });
     cfgElm.bgLabelPicker.addEventListener('input', () => {
-      console.log(`背景ラベルカラー更新: ${window.AppState.currentConfig.bgLabelColor}`);
+      console.log(`背景ラベルカラー更新: ${window.ConfigEditor.currentConfig.bgLabelColor}`);
     });
   }
 
   // configを更新・描画
   const updateConfig = function(cfg, isEdited = false){
-    window.AppState.currentConfig = cfg;
+    window.ConfigEditor.currentConfig = cfg;
     if(isEdited) applyConfig(cfg);
     updateCfgElm(cfg);
   }
@@ -309,25 +309,17 @@
       cfg.colorBlocks[i].enabled = cb.checkbox.checked;
     });
 
-
-    window.AppState.currentConfig = cfg;
-    if(isEdited) applyConfig(cfg);
+    window.ConfigEditor.currentConfig = cfg;
+    if(isEdited) applyConfig(cfg, window.FrameManager.cfgToggleStates);
   }
 
-  const applyConfig = function(cfg) {
+  const applyConfig = function(cfg, cfgToggleStates) {
     if(cfgToggleStates.some(Boolean)){
-      for(let i = 0; i < cfgToggleStates.length; ++i){
-        if(cfgToggleStates[i]) {
-          window.AppState.frameConfigs[i] = cfg;
-          frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
-          if(processedImages['processed'][i]?.phase) --processedImages['processed'][i].phase;
-        }
-      }
+      setFrameConfigs(cfg, cfgToggleStates);
     } else {
-      window.AppState.globalConfig = cfg;
-      ++window.AppState.updatePhase;
+      window.Core.setGlobalConfig(cfg);
     }
-    prepareAndShowImage(frameIndex, window.AppState.showMode);
+    window.Core.prepareAndShowImage();
   }
 
   //// 共有オブジェクト
