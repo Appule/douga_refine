@@ -82,7 +82,7 @@
     });
 
     editorContent.addEventListener("mousedown", (e) => {
-      if (window.Core.cursorMode !== 'camera') return;
+      if (window.Core.getCursorMode() !== 'camera') return;
       if (e.button === 1) { // 中ボタンでリセット
         resetCanvasOffset();
         e.preventDefault();
@@ -96,20 +96,20 @@
     });
 
     editorContent.addEventListener("mousemove", (e) => {
-      if (window.Core.cursorMode !== 'camera' || !isDragging) return;
+      if (window.Core.getCursorMode() !== 'camera' || !isDragging) return;
       offsetX = e.clientX - startX;
       offsetY = e.clientY - startY;
       updateTransform();
     });
 
     editorContent.addEventListener("mouseup", () => {
-      if (window.Core.cursorMode !== 'camera') return;
+      if (window.Core.getCursorMode() !== 'camera') return;
       isDragging = false;
     });
 
     // 投げ縄開始
     editorContent.addEventListener('mousedown', e => {
-      if (window.Core.cursorMode !== 'highTh' && window.Core.cursorMode !== 'lowTh') return;
+      if (window.Core.getCursorMode() !== 'highTh' && window.Core.getCursorMode() !== 'lowTh') return;
 
       isLassoing  = true;
       lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
@@ -314,7 +314,7 @@
   
     let fillColor;
     if (mode == 'fill') {
-      fillColor = window.Core.cursorMode == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
+      fillColor = window.Core.getCursorMode() == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
     } else if (mode == 'erase') {
       fillColor = 'rgb(255, 255, 255, 1.0)';
     } else {
