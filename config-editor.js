@@ -265,7 +265,7 @@
   // configを更新・描画
   const updateConfig = function(cfg, isEdited = false){
     window.ConfigEditor.currentConfig = cfg;
-    if(isEdited) applyConfig(cfg);
+    if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     updateCfgElm(cfg);
   }
 
@@ -310,12 +310,12 @@
     });
 
     window.ConfigEditor.currentConfig = cfg;
-    if(isEdited) applyConfig(cfg, window.FrameManager.cfgToggleStates);
+    if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
   }
 
   const applyConfig = function(cfg, cfgToggleStates) {
     if(cfgToggleStates.some(Boolean)){
-      setFrameConfigs(cfg, cfgToggleStates);
+      window.Core.setFrameConfigs(cfg, cfgToggleStates);
     } else {
       window.Core.setGlobalConfig(cfg);
     }

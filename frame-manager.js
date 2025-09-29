@@ -14,8 +14,7 @@
     
     menuContent.innerHTML = '';
     frameBtns = new Array(fileInfos.length);
-    cfgToggleStates = new Array(fileInfos.length);
-    frameConfigs = new Array(fileInfos.length);
+    cfgToggleStates = new Array(fileInfos.length).fill(false);
     
     // 各ボタンの初期設定
     fileInfos.forEach((info, index) => {
@@ -69,9 +68,15 @@
       });
       row.appendChild(fbtn);
 
+      // アプライボタン 'rgba(235, 190, 44, 1)'
+      // const abtn = document.createElement("button");
+      // abtn.classList.add("apply-btn");
+      // abtn.style.visibility = 'hidden';
+      // abtn.innerHTML = '';
+      // row.appendChild(abtn);
+
       // コンフィグボタン 'rgba(230, 129, 71, 1)'
       const cbtn = document.createElement("button");
-      cfgToggleStates[index] = false;
       cbtn.classList.add("config-btn");
       cbtn.innerHTML = '';
       cbtn.addEventListener("mousedown", (event) => {
@@ -120,7 +125,7 @@
       menuContent.appendChild(row);
     });
     ++window.Core.configPhase;
-    accentFrmBtn(0);
+    accentFrmBtn(window.Core.getFrameIndex());
 
   }
 
@@ -140,7 +145,7 @@
   const colorEditorTitle = document.getElementById("color-editor-title");
   function updateCfgBtns(){
     let noActive = true;
-    window.Core.frameBtns.forEach((b, i) => {
+    frameBtns.forEach((b, i) => {
       if (cfgToggleStates[i]) {
         b.cbtn.classList.add('accent');
         noActive = false;
@@ -155,7 +160,7 @@
       window.ConfigEditor.updateConfig(window.Core.getGlobalConfig(), false);
     } else {
       colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
-      const cfg = window.Core.frameConfigs[frameCfgIndex] ? window.Core.frameConfigs[frameCfgIndex] : window.Core.getGlobalConfig();
+      const cfg = window.Core.getFrameConfig(frameCfgIndex) ? window.Core.getFrameConfig(frameCfgIndex) : window.Core.getGlobalConfig();
       window.ConfigEditor.updateConfig(cfg, false);
     }
   }
@@ -253,17 +258,23 @@
   });
   menuContent.addEventListener("mousedown", (event) => {
     if(event.button == 2){
-      window.FrameManager.cfgToggleStates.fill(false);
+      cfgToggleStates.fill(false);
       updateCfgBtns();
     }
   });
+
+  const getCfgToggleStates = function(){ return cfgToggleStates; }
+
+  const drawGear = function(i){
+    frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+  }
 
   //// 共有オブジェクト
   window.FrameManager = {
     init,
     updateFrameButtons,
-    cfgToggleStates,
-    frameBtns,
+    getCfgToggleStates,
+    drawGear,
   }
 
 })();

@@ -127,6 +127,7 @@
     uploadedImages = new Array(num);
     processedImages = new Array(num).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, phase:0 }});
     drawImages = new Array(num);
+    frameConfigs = new Array(num).fill(0);
   }
 
   const setUploadedImage = function(img, idx = null){ 
@@ -189,16 +190,19 @@
   const getGlobalConfig = function(){ return globalConfig; }
 
   const setFrameConfigs = function(cfg, toggles){
-    frameConfigs.forEach((fc, i) => {
+    for(let i = 0; i < frameConfigs.length; ++i) {
       if(toggles[i]) {
-        fc = cfg;
-        window.FrameManager.frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+        frameConfigs[i] = cfg;
+        window.FrameManager.drawGear(i);
         processedImages[i].phase--;
       }
-    });
+    }
     prepareAndShowImage();
   }
-  const getFrameConfigs = function(){ return frameConfigs; }
+  const getFrameConfig = function(idx){
+    idx = idx || frameIndex;
+    return frameConfigs[idx];
+  }
 
   const incrementPhase = function(){ 
     configPhase++; 
@@ -255,7 +259,7 @@
     setGlobalConfig,
     getGlobalConfig,
     setFrameConfigs,
-    getFrameConfigs,
+    getFrameConfig,
     incrementPhase,
     getConfigPhase,
     checkPhase,

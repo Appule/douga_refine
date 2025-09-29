@@ -88,8 +88,7 @@ body, html {
   margin-bottom: 0px;
 }
 
-.frame-btn {
-  flex: 0 0 70%;
+.frame-btn, .apply-btn, .config-btn {
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -101,18 +100,18 @@ body, html {
   text-align: center;
 }
 
+.frame-btn {
+  flex: 0 0 70%;
+}
+
+.apply-btn {
+  flex: 0 0 20%;
+  background-color: rgb(70, 195, 248);
+}
+
 .config-btn {
   flex: 0 0 30%;
-  height: 40px;
-  font-size: 14px;
-  padding: 5px;
-  margin: 0px 0;
-  border: 1px solid #ccc;
-  color: #fff;
   background-color: rgb(230, 129, 71);
-  border-radius: 4px;
-  cursor: pointer;
-  text-align: center;
 }
 
 .frame-item:hover {
