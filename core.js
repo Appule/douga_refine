@@ -172,6 +172,8 @@
 
   const setCursorMode = function(mode){
     cursorMode = mode;
+    if(mode == 'camera') window.CanvasEditor.hideDrawCanvas();
+    else window.CanvasEditor.showDrawCanvas();
   }
   const getCursorMode = function(){ return cursorMode; }
 

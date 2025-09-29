@@ -361,10 +361,15 @@
     ctx.putImageData(img, 0, 0);
   }
 
+  const hideDrawCanvas = function(){ drawCanvas.hidden = true; }
+  const showDrawCanvas = function(){ drawCanvas.hidden = false; }
+
   //// 共有オブジェクト
   window.CanvasEditor = {
     init,
     drawImg,
+    hideDrawCanvas,
+    showDrawCanvas,
   }
 
 })();
