@@ -1,3 +1,14 @@
+function showStatus(message, type = 'info', duration = null) {
+  const statusElement = document.getElementById('status')
+  statusElement.innerHTML = `<div class="${type}">${message}</div>`;
+
+  if (duration > 0) {
+    setTimeout(() => {
+      statusElement.innerHTML = '';
+    }, duration);
+  }
+}
+
 function hexToInt32(hex) {
   // 先頭の#を除去
   let h = hex.replace(/^#/, '');

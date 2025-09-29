@@ -3,6 +3,7 @@
   // initialize config entry for this block
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
 
+  // カラー編集ウィンドウの初期設定
   const init = function() {
     // インポートボタン
     const importBtn = document.getElementById('importColorsBtn');

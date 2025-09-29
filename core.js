@@ -1,22 +1,3 @@
-// ステータス出力
-function showStatus(message, type = 'info', duration = null) {
-  const statusElement = document.getElementById('status')
-  statusElement.innerHTML = `<div class="${type}">${message}</div>`;
-
-  if (duration > 0) {
-    setTimeout(() => {
-      statusElement.innerHTML = '';
-    }, duration);
-  }
-}
-
-// Draw ImageData directly to the visible canvas
-function showImage(imageData) {
-  if (!imageData) return;
-  ctx.putImageData(imageData, 0, 0);
-}
-
-// Update frame buttons' styles and the all-process indicator for the given mode
 function updateFrameButtonsForMode(mode) {
   let allProcessed = true;
   for (let j = 0; j < uploadedImages.length; j++) {
@@ -603,7 +584,7 @@ async function prepareAndShowImage(i, showMode) {
   if (!uploadedImages[i]) return;
 
   if (showMode === 'original') {
-    showImage(uploadedImages[i]);
+    ctx.putImageData(uploadedImages[i], 0, 0);
     return;
   }
 
@@ -615,7 +596,7 @@ async function prepareAndShowImage(i, showMode) {
 
   const procImg = processedImages[showMode][i]?.img;
   if (procImg) {
-    showImage(procImg);
+    ctx.putImageData(procImg, 0, 0);
   }
 
   // Update frame button styles based on completeness for this mode

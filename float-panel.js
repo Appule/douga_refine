@@ -330,6 +330,7 @@
   let allProcBtn = null;
   let fileExtList = null;
 
+  // フロートウィンドウの初期設定
   const init = function() {
     windows.push(new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'));
 
@@ -447,9 +448,6 @@
 
       zip.file(name, blob);
     }
-    
-    localStorage.setItem("localConfigData", JSON.stringify(globalConfig));
-    zip.file("config.json", JSON.stringify(globalConfig, null, 2));
 
     const blob = await zip.generateAsync({ type: "blob" });
     const a = document.createElement("a");
