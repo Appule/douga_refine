@@ -1,24 +1,3 @@
-function updateFrameButtonsForMode(mode) {
-  let allProcessed = true;
-  for (let j = 0; j < uploadedImages.length; j++) {
-    const proc = processedImages[mode]?.[j];
-    const done = proc?.img && proc?.phase === window.AppState.updatePhase;
-    const btn = frameBtns[j];
-    if (!btn) continue;
-    if (!done) {
-      allProcessed = false;
-      btn.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
-    } else {
-      btn.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
-    }
-  }
-  if (allProcessed) {
-    window.FloatPanel.allProcBtn.classList.remove('blink');
-  } else {
-    window.FloatPanel.allProcBtn.classList.add('blink');
-  }
-}
-
 let frameIndex = 0; // 現在のフレーム番号
 let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
 let cfgToggleStates = []; // コンフィグボタンのトグル状態
@@ -47,14 +26,6 @@ let pColorEditorMode = colorEditorMode;
 //// HTML要素
 // エディター画面 (中央エリア)
 const editorContent = document.querySelector(".editor-content");
-editorContent.innerHTML = `
-  <h1>編集画面</h1>
-  <p>ここに画像をドラッグ＆ドロップしてください</p>
-  <canvas id="canvas"></canvas>
-  <canvas id="drawCanvas"></canvas>
-  <canvas id="overlayCanvas"></canvas>
-  <canvas id="offscreenCanvas"></canvas>
-`;
 const dropZone = document.getElementById("drop-zone");
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -68,8 +39,6 @@ const osctx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 const menuContent = document.querySelector(".menu-content");
 const previewCanvas = document.getElementById('previewCanvas');
 const pctx = previewCanvas.getContext('2d');
-// カラー編集 (下部エリア)
-const colorEditorTitle = document.getElementById("color-editor-title");
 
 // ページ設定
 document.addEventListener('DOMContentLoaded', () => {
@@ -213,28 +182,28 @@ dropZone.addEventListener("drop", (e) => {
   e.preventDefault();
   dropZone.classList.remove("dragover");
 
+  // ex) A_0001~0088 => [{ file, num:0001~0088, num:1~88, basename:A }, ...]
   fileInfos = Array.from(e.dataTransfer.files)
-  .filter(f => {
-    return f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif");
-  })
-  .map(f => {
-    const baseNameOnly = f.name.replace(/\.[^/.]+$/, ""); // 拡張子を除去
-    const lastUnderscore = baseNameOnly.lastIndexOf("_");
-    const basename = lastUnderscore !== -1 
-      ? baseNameOnly.substring(0, lastUnderscore) 
-      : baseNameOnly;
+    .filter(f => {
+      return f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif");
+    })
+    .map(f => {
+      const baseNameOnly = f.name.replace(/\.[^/.]+$/, ""); // 拡張子を除去
+      const lastUnderscore = baseNameOnly.lastIndexOf("_");
+      const basename = lastUnderscore !== -1 
+        ? baseNameOnly.substring(0, lastUnderscore) 
+        : baseNameOnly;
 
-    const m = f.name.match(/(\d{4})/);
-    const padded = m ? m[1] : "";
-    const num = m ? parseInt(m[1], 10) : Infinity;
+      const m = f.name.match(/(\d{4})/);
+      const padded = m ? m[1] : "";
+      const num = m ? parseInt(m[1], 10) : Infinity;
 
-    return { file: f, padded, num, basename };
-  })
-  .sort((a, b) => a.num - b.num);
+      return { file: f, padded, num, basename };
+    })
+    .sort((a, b) => a.num - b.num);
   
   // フロートパネルのファイル名欄を更新
-  window.FloatPanel.fileNameInput.value = fileInfos[0].basename;
-  window.FloatPanel.fileNameInput.dispatchEvent(new Event('input'));
+  window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
 
   // フレームメニューを初期化
   menuContent.innerHTML = '';
@@ -379,9 +348,9 @@ dropZone.addEventListener("drop", (e) => {
         if (ext === 'tga') {
           imgData = await window.ImageLoader.loadTGA(info.file);
         } else if (ext === 'tif' || ext === 'tiff') {
-          imgData = await loadTIFF(info.file);
+          imgData = await window.ImageLoader.loadTIFF(info.file);
         } else {
-          imgData = await loadIMG(info.file);
+          imgData = await window.ImageLoader.loadIMG(info.file);
         }
 
         // Ensure canvases match image size before drawing
@@ -465,6 +434,7 @@ function updateFrmBtns(index){
   });
 }
 // コンフィグボタンの更新
+const colorEditorTitle = document.getElementById("color-editor-title");
 function updateCfgBtns(){
   let noActive = true;
   frameBtns.forEach((b, i) => {
@@ -601,6 +571,27 @@ async function prepareAndShowImage(i, showMode) {
 
   // Update frame button styles based on completeness for this mode
   updateFrameButtonsForMode(showMode);
+}
+
+function updateFrameButtonsForMode(mode) {
+  let allProcessed = true;
+  for (let j = 0; j < uploadedImages.length; j++) {
+    const proc = processedImages[mode]?.[j];
+    const done = proc?.img && proc?.phase === window.AppState.updatePhase;
+    const btn = frameBtns[j];
+    if (!btn) continue;
+    if (!done) {
+      allProcessed = false;
+      btn.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
+    } else {
+      btn.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
+    }
+  }
+  if (allProcessed) {
+    window.FloatPanel.allProcBtn.classList.remove('blink');
+  } else {
+    window.FloatPanel.allProcBtn.classList.add('blink');
+  }
 }
 
 // カメラワーク / 範囲選択処理

@@ -1,5 +1,4 @@
 (function() {
-
   // initialize config entry for this block
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
 

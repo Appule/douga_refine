@@ -372,9 +372,14 @@
     //// 共有オブジェクト
     window.FloatPanel = {
       windows: windows,
-      fileNameInput: fileNameInput,
+      updateFilenameInput: updateFilenameInput,
       allProcBtn: allProcBtn,
     }
+  }
+
+  const updateFilenameInput = function(fileName){
+    fileNameInput.value = fileName;
+    fileNameInput.dispatchEvent(new Event('input'));
   }
 
   const processAllImages = async function(){
