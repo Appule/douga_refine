@@ -160,19 +160,22 @@
   // モード setter/getter
   const setShowMode = function(mode){
     showMode = mode;
+    if(mode == 'camera' || showMode != 'processed') window.CanvasEditor.hideDrawCanvas();
+    else window.CanvasEditor.showDrawCanvas();
     prepareAndShowImage();
   }
   const getShowMode = function(){ return showMode; }
 
   const setCursorMode = function(mode){
     cursorMode = mode;
-    if(mode == 'camera') window.CanvasEditor.hideDrawCanvas();
+    if(mode == 'camera' || showMode != 'processed') window.CanvasEditor.hideDrawCanvas();
     else window.CanvasEditor.showDrawCanvas();
   }
   const getCursorMode = function(){ return cursorMode; }
 
   const setFrameIndex = function(idx){
     frameIndex = idx;
+    window.CanvasEditor.drawImg(drawImages[idx]);
     prepareAndShowImage();
   }
   const getFrameIndex = function(){ return frameIndex; }
@@ -212,7 +215,7 @@
     if (!uploadedImages[i]) return;
 
     if (showMode === 'original') {
-      window.CanvasEditor.drawImg(uploadedImages[i]);
+      window.CanvasEditor.showImg(uploadedImages[i]);
       return;
     }
 
@@ -224,7 +227,8 @@
 
     const procImg = processedImages[i][showMode];
     if (procImg) {
-      window.CanvasEditor.drawImg(procImg);
+      window.CanvasEditor.showImg(procImg);
+      window.CanvasEditor.drawImg(drawImages[i]);
     }
 
     // ボタンのスタイルを更新

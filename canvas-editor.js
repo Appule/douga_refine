@@ -216,8 +216,10 @@
           
           resetCanvasOffset();
           
+          dctx.save();
           dctx.fillStyle = '#FFFFFF';
           dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+          dctx.restore();
         }
   
         if (index === fileInfos.length - 1) {
@@ -357,8 +359,17 @@
   }
 
 
+  const showImg = function(img){
+    if(img) ctx.putImageData(img, 0, 0);
+  }
   const drawImg = function(img){
-    ctx.putImageData(img, 0, 0);
+    if(img) dctx.putImageData(img, 0, 0);
+    else {
+      dctx.save();
+      dctx.fillStyle = '#FFFFFF';
+      dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+      dctx.restore();
+    }
   }
 
   const hideDrawCanvas = function(){ drawCanvas.hidden = true; }
@@ -367,6 +378,7 @@
   //// 共有オブジェクト
   window.CanvasEditor = {
     init,
+    showImg,
     drawImg,
     hideDrawCanvas,
     showDrawCanvas,
