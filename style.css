@@ -169,7 +169,7 @@ body, html {
 .color-block {
   position:relative;
   flex-shrink: 0;
-  width: 365px;
+  width: 380px;
   height: 120px;
   background-color: #fff;
   margin-right: 4px;
@@ -204,23 +204,70 @@ body, html {
 .sliders-container {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 10px;
 }
 
-.slider-label, .slider-value {
-  width: 50px; /* 幅を固定して位置を揃える */
-  text-align: left;
-  font-size: 14px;
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-wrapper {
+  position: relative;
+  width: 120px;
+  height: 20px;
 }
 
 .color-slider {
-  width: 120px;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  top: 0;
+  margin: 0;
+  position: absolute;
   -webkit-appearance: none;
   appearance: none;
   background: #e0e0e0;
   outline: none;
   opacity: 0.7;
   transition: opacity .2s;
+}
+
+.arrow {
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 100%;
+  z-index: 2;
+  background: rgba(187, 187, 187, 0.8);
+  border: none;
+  font-size: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arrow.left {
+  left: -10px;
+}
+
+.arrow.right {
+  right: -10px;
+}
+
+.slider-label {
+  width: 45px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.slider-value {
+  width: 40px;
+  text-align: left;
+  font-size: 14px;
+  margin-left: 4px;
 }
 
 .color-slider:hover {

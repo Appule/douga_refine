@@ -115,17 +115,29 @@
         <div class="sliders-container">
           <div class="slider-row">
             <span class="slider-label">閾値　</span>
-            <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.threshold}" data-channel="threshold"/>
+            <div class="slider-wrapper">
+              <button class="arrow left" id="decrease">◀</button>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.threshold}" data-channel="threshold"/>
+              <button class="arrow right" id="increase">▶</button>
+            </div>
             <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.threshold}"/>
           </div>
           <div class="slider-row">
             <span class="slider-label">線検知</span>
-            <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.log}" data-channel="log">
+            <div class="slider-wrapper">
+              <button class="arrow left" id="decrease">◀</button>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.log}" data-channel="log">
+              <button class="arrow right" id="increase">▶</button>
+            </div>
             <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.log}"/>
           </div>
           <div class="slider-row">
             <span class="slider-label">重み　</span>
-            <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.weight}" data-channel="weight">
+            <div class="slider-wrapper">
+              <button class="arrow left" id="decrease">◀</button>
+              <input type="range" class="color-slider" min="0" max="100" step="1" value="${initialSlider.weight}" data-channel="weight">
+              <button class="arrow right" id="increase">▶</button>
+            </div>
             <input type="number" class="slider-value" min="0" max="100" step="1" value="${initialSlider.weight}"/>
           </div>
         </div>
@@ -150,6 +162,7 @@
     const labelPicker = block.querySelector(".label-picker");
     const sliders     = block.querySelectorAll(".color-slider"); // [0]=threshold, [1]=log, [2]=weight
     const numbers     = block.querySelectorAll(".slider-value"); // [0]=threshold, [1]=log, [2]=weight
+    const buttons     = block.querySelectorAll(".arrow"); // [0/1]=thresholdIn/Dc, [2/3]=logIn/Dc, [4/5]=weightIn/Dc
 
     cfgElm.colorBlocks.push({
       checkbox,
@@ -185,11 +198,27 @@
     // スライダーと数値インプットを紐づけ
     sliders.forEach((slider, i) => {
       const number = numbers[i];
+      const decreaseBtn = buttons[i*2];
+      const increaseBtn = buttons[i*2+1];
       const step = Number(number.step) || 1;
+      // range → number
+      slider.addEventListener("change", () => {
+        number.value = slider.value;
+        console.log(`スライダー更新: ${slider.value}`);
+        colorBlocksUpdated(true);
+      });
       // range → number
       slider.addEventListener("input", () => {
         number.value = slider.value;
-        console.log(`スライダー更新: ${slider.value}`);
+      });
+      // number → range
+      number.addEventListener("change", () => {
+        let val = Number(number.value);
+        if (val < slider.min) val = slider.min;
+        if (val > slider.max) val = slider.max;
+        slider.value = val;
+        number.value = val;
+        console.log(`数値インプット更新: ${val}`);
         colorBlocksUpdated(true);
       });
       // number → range
@@ -199,8 +228,6 @@
         if (val > slider.max) val = slider.max;
         slider.value = val;
         number.value = val;
-        console.log(`数値インプット更新: ${val}`);
-        colorBlocksUpdated(true);
       });
       // number: ホイール操作
       number.addEventListener("wheel", (e) => {
@@ -213,6 +240,19 @@
         number.value = val;
         slider.value = val;
         console.log(`数値インプット更新: ${val}`);
+        colorBlocksUpdated(true);
+      });
+      // button → range/number
+      decreaseBtn.addEventListener("click", () => {
+        slider.value = Math.max(Number(slider.min), Number(slider.value) - Number(slider.step));
+        number.value = slider.value;
+        console.log(`数値更新: ${slider.value}`);
+        colorBlocksUpdated(true);
+      });
+      increaseBtn.addEventListener("click", () => {
+        slider.value = Math.max(Number(slider.min), Number(slider.value) + Number(slider.step));
+        number.value = slider.value;
+        console.log(`数値更新: ${slider.value}`);
         colorBlocksUpdated(true);
       });
     });
