@@ -68,13 +68,6 @@
       });
       row.appendChild(fbtn);
 
-      // アプライボタン 'rgba(235, 190, 44, 1)'
-      // const abtn = document.createElement("button");
-      // abtn.classList.add("apply-btn");
-      // abtn.style.visibility = 'hidden';
-      // abtn.innerHTML = '';
-      // row.appendChild(abtn);
-
       // コンフィグボタン 'rgba(230, 129, 71, 1)'
       const cbtn = document.createElement("button");
       cbtn.classList.add("config-btn");
@@ -121,6 +114,17 @@
         cbtn.classList.remove('active');
       });
       row.appendChild(cbtn);
+
+      // 個別保存ボタン 'rgba(44, 222, 235, 1)'
+      const sbtn = document.createElement("button");
+      sbtn.classList.add("save-btn");
+      sbtn.innerHTML = '<i class="fas fa-file-download"></i>';
+      sbtn.addEventListener("click", async () => {
+        if(await window.Core.saveImage(index, true)) sbtn.classList.replace("save-btn", "saved-btn");
+      });
+      row.appendChild(sbtn);
+
+      // ボタン列
       frameBtns[index] = {fbtn, cbtn};
       menuContent.appendChild(row);
     });
@@ -247,9 +251,9 @@
       }
     }
     if (allProcessed) {
-      window.FloatPanel.allProcBtn.classList.remove('blink');
+      window.FloatPanel.blinkAllProcBtn(false);
     } else {
-      window.FloatPanel.allProcBtn.classList.add('blink');
+      window.FloatPanel.blinkAllProcBtn(false);
     }
   }
   

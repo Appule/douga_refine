@@ -88,7 +88,7 @@ body, html {
   margin-bottom: 0px;
 }
 
-.frame-btn, .apply-btn, .config-btn {
+.frame-btn, .config-btn, .save-btn, .saved-btn {
   height: 40px;
   font-size: 14px;
   padding: 5px;
@@ -101,16 +101,22 @@ body, html {
 }
 
 .frame-btn {
-  flex: 0 0 70%;
+  flex: 0 0 65%;
 }
 
-.apply-btn {
-  flex: 0 0 20%;
-  background-color: rgb(70, 195, 248);
+.save-btn {
+  flex: 0 0 15%;
+  background-color: rgb(44, 222, 235);
+}
+
+.saved-btn {
+  flex: 0 0 15%;
+  background-color: rgb(223, 221, 143);
+  border: 2px solid #252525;
 }
 
 .config-btn {
-  flex: 0 0 30%;
+  flex: 0 0 20%;
   background-color: rgb(230, 129, 71);
 }
 

@@ -61,7 +61,7 @@
       window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
   
       // 画像データキャッシュ配列を生成
-      window.Core.initImageDatas(fileInfos.length);
+      window.Core.initImageDatas(fileInfos);
   
       // フレームメニューを初期化
       window.FrameManager.init(fileInfos);
