@@ -1,4 +1,6 @@
 (function() {
+  // hard-coded default config
+  const DEFAULT_CONFIG = {"bgColor": "#e8eff2","bgLabelColor": "#ffffff","fileName": "デフォルト","version":2,"colorBlocks": [ {"sliders": {"threshold": "60","log": "20","weight": "50" },"numbers": {},"color": "#7b7f7e","labelColor": "#000000","enabled": true }, {"sliders": {"threshold": "60","log": "40","weight": "30" },"numbers": {},"color": "#d58b8d","labelColor": "#ff0000","enabled": true }, {"sliders": {"threshold": "55","log": "40","weight": "40" },"numbers": {},"color": "#9bb76f","labelColor": "#00ff00","enabled": true }, {"sliders": {"threshold": "56","log": "40","weight": "30" },"numbers": {},"color": "#94b6e3","labelColor": "#0000ff","enabled": true } ] }
   // initialize config entry for this block
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
   // Html要素
@@ -50,7 +52,7 @@
   const loadLocalConfig = function() {
     const localConfig = localStorage.getItem("localConfigData");
     const parsed = JSON.parse(localConfig);
-    if (localConfig) {
+    if (parsed && parsed.version == 2) {
       try {
         updateConfig(parsed, true);
         showStatus('前回のConfigを復元しました。', 'success', 3000);
@@ -58,6 +60,9 @@
         console.error('Error loading local config:', error);
         showStatus('前回のConfigの復元に失敗しました。', 'error', 3000);
       }
+    } else {
+      updateConfig(DEFAULT_CONFIG);
+      showStatus('前回のConfigは互換性がありません。', 'error', 3000);
     }
   }
 
@@ -83,6 +88,7 @@
 
   // コンフィグのセーブ (エクスポート)
   function saveConfig() {
+    currentConfig.version = 2;
     localStorage.setItem("localConfigData", JSON.stringify(currentConfig));
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
