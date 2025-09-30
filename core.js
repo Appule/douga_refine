@@ -3,7 +3,7 @@
   let fileInfos = [];
   // 画像データ
   let uploadedImages = []; // アップロードした画像
-  let processedImages = [{ pressure:null, log:null, processed:null, phase:0, saved:false }]; // 処理後画像の保持
+  let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, phase:0, saved:false }, ... ]
   let drawImages = []; // マーキング画像
   // モード
   let showMode = 'processed'; // 現在の描画モード
@@ -127,7 +127,7 @@
   // 画像データ setter/getter
   const initImageDatas = function(fis){
     uploadedImages = new Array(fis.length);
-    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, phase:0 }});
+    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, phase:0, saved:0 }});
     drawImages = new Array(fis.length);
     frameConfigs = new Array(fis.length).fill(0);
     fileInfos = new Array(fis.length);
@@ -246,6 +246,7 @@
   }
 
   const saveImage = async function(idx, refresh) {
+    // 確認処理
     const fileName = window.FloatPanel.getFileName();
     const fileFormat = window.FloatPanel.getFileExt();
     if (fileName === '') {
@@ -256,14 +257,10 @@
       alert('ファイル形式を選択してください。');
       return false;
     }
-    if(showMode !== 'processed') await setShowMode('processed');
-    await prepareAndShowImage(idx);
-    const imgData = processedImages[idx].processed;
-    if (!imgData) {
+    if (!uploadedImages[idx]) {
       alert('保存する画像がありません。');
       return false;
     }
-    // 確認ダイアログ
     const base = fileName;
     const num  = fileInfos[idx].padded;
     const name = `${base}_${num}.${fileFormat}`;
@@ -272,20 +269,25 @@
       return false; // キャンセルされたら処理を中止
     }
 
+    // 画像処理
+    if(showMode !== 'processed') await setShowMode('processed');
+    await prepareAndShowImage(idx);
+    const imageData = processedImages[idx].processed;
+
+    // エンコード
     let blob;
     if (fileFormat === 'png') {
-      blob = await encodePNG(imgData);
+      blob = await encodePNG(imageData);
     } else if (fileFormat === 'tif') {
-      blob = await encodeTIFF(imgData);
+      blob = await encodeTIFF(imageData);
     } else if (fileFormat === 'tga') {
-      blob = await encodeTGA(imgData);
+      blob = await encodeTGA(imageData);
     } else {
       throw new Error('Unsupported format: ' + fileFormat);
     }
 
-    const url = URL.createObjectURL(blob);
-
     // ダウンロード
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = name;
@@ -294,6 +296,7 @@
     a.remove();
     URL.revokeObjectURL(url);
 
+    // 画面更新処理
     if(refresh) await prepareAndShowImage();
     return true;
   }
@@ -308,9 +311,9 @@
   }
   
   const saveAllImages = async function() {
+    // 確認処理
     const fileName = window.FloatPanel.getFileName();
     const fileFormat = window.FloatPanel.getFileExt();
-    const images = processedImages.processed;
     if (fileName === '') {
       alert('ファイル名を入力してください。');
       fileNameInput.classList.add('blink');
@@ -320,19 +323,20 @@
       alert('ファイル形式を選択してください。');
       return;
     }
-    if (images.length === 0) {
+    if (uploadedImages.length === 0) {
       alert('保存する画像がありません。');
       return;
     }
-    // 確認ダイアログ
     const ok = confirm(`「${fileName}_XXXX.${fileFormat}」という名前で保存しますか？`);
     if (!ok) {
       return; // キャンセルされたら処理を中止
     }
-    // 全処理
+    
+    // 画像処理
+    const images = processedImages;
     let allProcessed = false;
     for (let j = 0; j < uploadedImages.length; j++) {
-      if (!images[j]?.img || window.ConfigEditor.configPhase != images[j]?.phase) {
+      if (!images[j]?.processed || configPhase != images[j]?.phase) {
         allProcessed = false;
         break;
       }
@@ -342,42 +346,36 @@
       await processAllImages();
     }
     showStatus('ZIPファイルを生成中...', 'info');
-    
-    const zip = new JSZip();
 
-    for (let i = 0; i < processedImages.processed.length; i++) {
-      const imgData = processedImages.processed[i].img;
-      if (!imgData) continue;
-
-      canvas.width = imgData.width;
-      canvas.height = imgData.height;
-      ctx.putImageData(imgData, 0, 0);
-
+    for (let i = 0; i < processedImages.length; i++) {
+      // エンコード
+      const imageData = processedImages[i].processed;
       let blob;
       if (fileFormat === 'png') {
-        blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        blob = await encodePNG(imageData);
       } else if (fileFormat === 'tif') {
-        blob = encodeTIFF(imgData);
+        blob = await encodeTIFF(imageData);
       } else if (fileFormat === 'tga') {
-        blob = encodeTGA(imgData);
+        blob = await encodeTGA(imageData);
       } else {
         throw new Error('Unsupported format: ' + fileFormat);
       }
-        
-      const base = fileNameInput.value;
-      const num  = fileInfos[i].padded;
-      const name = `${base}_${num}.${fileFormat}`;
 
-      zip.file(name, blob);
+      // ダウンロード
+      const num  = fileInfos[i].padded;
+      const name = `${fileName}_${num}.${fileFormat}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      if(i < processedImages.length - 1) await delay(200);
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${fileName}.zip`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-
+    await prepareAndShowImage();
     showStatus('ZIPファイルの保存が完了しました。', 'success', 3000);
   }
 

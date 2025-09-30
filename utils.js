@@ -186,3 +186,8 @@ const encodeTGA = function(imgData) {
   const body = new Uint8Array(out);
   return new Blob([header, body], { type: "image/x-tga" });
 }
+
+// 待機関数
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
