@@ -18,8 +18,6 @@
   // ページ設定
   document.addEventListener('DOMContentLoaded', () => {
 
-    window.ConfigEditor.init();
-
     const topContainer = document.querySelector('.top-container');
     const mainEditorPanel = document.querySelector('.main-editor-panel');
     const frameMenuPanel = document.querySelector('.frame-menu-panel');
@@ -121,8 +119,6 @@
       document.body.style.userSelect = '';
     });
   });
-
-  window.CanvasEditor.init();
 
   // 画像データ setter/getter
   const initImageDatas = function(fis){
@@ -410,6 +406,8 @@
     saveAllImages,
   }
 
+  window.ConfigEditor.init();
+  window.CanvasEditor.init();
   initWebGPU();
 
 })();
