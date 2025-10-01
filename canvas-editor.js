@@ -34,7 +34,7 @@
     // 画像アップロードイベント
     dropZone.addEventListener("drop", async (e) => {
       e.preventDefault();
-      showStatus('画像を読み込み中...', 'info');
+      showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
       dropZone.classList.remove("dragover");
   
       // ex) A_0001~0088 => [{ file, num:0001~0088, num:1~88, basename:A }, ...]

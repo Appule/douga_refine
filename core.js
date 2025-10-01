@@ -170,7 +170,7 @@
   // モード setter/getter
   const setShowMode = function(mode){
     showMode = mode;
-    if(mode == 'camera' || showMode != 'processed') window.CanvasEditor.hideDrawCanvas();
+    if(cursorMode == 'camera' || mode != 'processed') window.CanvasEditor.hideDrawCanvas();
     else window.CanvasEditor.showDrawCanvas();
     prepareAndShowImage();
   }

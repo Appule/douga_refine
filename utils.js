@@ -1,10 +1,19 @@
+let _statusTimeoutId = null;
+
 function showStatus(message, type = 'info', duration = null) {
   const statusElement = document.getElementById('status')
   statusElement.innerHTML = `<div class="${type}">${message}</div>`;
 
+  // Clear any existing timeout so multiple quick calls extend/update the display duration
+  if (_statusTimeoutId) {
+    clearTimeout(_statusTimeoutId);
+    _statusTimeoutId = null;
+  }
+
   if (duration > 0) {
-    setTimeout(() => {
+    _statusTimeoutId = setTimeout(() => {
       statusElement.innerHTML = '';
+      _statusTimeoutId = null;
     }, duration);
   }
 }
