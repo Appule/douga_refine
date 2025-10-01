@@ -19,6 +19,8 @@
   let startX, startY;
   let isLassoing   = false;
   let lassoPoints  = [];
+  // Fill alpha (0.1 .. 1.0) adjustable by pressing keys 1..9 and 0 (0 -> 1.0)
+  let fillAlpha = 0.1;
 
   const init = function(){
     // dragoverイベントでdrop許可
@@ -155,15 +157,15 @@
     }, { passive: false });
     
     
-    // Keyboard shortcuts: zoom
+    // Keyboard shortcuts: zoom and quick-fill alpha
     document.addEventListener('keydown', (e) => {
       // Ignore when typing in inputs/textareas
       const activeTag = document.activeElement?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
-
+  
       const key = e.key;
       const isShift = e.shiftKey;
-
+  
       // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
       if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -173,6 +175,24 @@
         if (isShift) changeZoomStep(-1, centerX, centerY);
         else changeZoomStep(1, centerX, centerY);
         return;
+      }
+  
+      // Quick alpha set for fill: keys 1..9 => 0.1..0.9, 0 => 1.0
+      // Only respond when not using modifier keys (so shortcuts like Ctrl+1 are preserved)
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (/^[0-9]$/.test(key)) {
+          // Only apply when the editor is in a lasso-able cursor mode (highTh / lowTh)
+          const cmode = window.Core.getCursorMode();
+          if (cmode === 'highTh' || cmode === 'lowTh') {
+            e.preventDefault();
+            const n = key === '0' ? 10 : parseInt(key, 10);
+            fillAlpha = Math.max(0.1, Math.min(1.0, n / 10));
+            if (typeof showStatus === 'function') {
+              showStatus(`Fill alpha set to ${fillAlpha.toFixed(1)}`, 'info', 1000);
+            }
+            return;
+          }
+        }
       }
     });
   }
@@ -239,7 +259,6 @@
     if (p) p.remove();
     editorContent.style.alignItems = 'initial';
   }
-  
 
   function findClosestZoomIndex(z) {
     let best = 0;
@@ -316,11 +335,14 @@
   
     let fillColor;
     if (mode == 'fill') {
-      fillColor = window.Core.getCursorMode() == 'highTh' ? 'rgb(255, 0, 0, 0.1)' : 'rgb(0, 0, 255, 0.1)';
+      // Use fillAlpha (adjustable via number keys) and proper rgba() string
+      fillColor = window.Core.getCursorMode() == 'highTh'
+        ? `rgba(255,0,0,${fillAlpha})`
+        : `rgba(0,0,255,${fillAlpha})`;
     } else if (mode == 'erase') {
-      fillColor = 'rgb(255, 255, 255, 1.0)';
+      fillColor = 'rgba(255,255,255,1.0)';
     } else {
-      fillColor = 'rgb(255, 255, 255, 1.0)';
+      fillColor = 'rgba(255,255,255,1.0)';
     }
   
     // drawCanvas に塗りつぶし
@@ -357,7 +379,6 @@
       y: (clientY - rect.top) * scaleY,
     };
   }
-
 
   const showImg = function(img){
     if(img) ctx.putImageData(img, 0, 0);
