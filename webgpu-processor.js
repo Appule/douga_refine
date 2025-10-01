@@ -2,6 +2,39 @@
   // --- WebGPU初期化 ---
   let device = null;
   const workgroupSize = 8;
+
+  // --- Pipeline & shader cache ---
+  // Cache pipelines, shader modules and bind group layouts so we don't recreate them every dispatch.
+  // Key is derived from shader code + binding signature to ensure uniqueness for a pipeline layout.
+  const pipelineCache = new Map();
+
+  function _makeBindingLayoutEntries(bindings){
+    return bindings.map(({binding, type}) => ({
+      binding,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type }
+    }));
+  }
+
+  function getOrCreatePipeline(shaderCode, bindings){
+    const key = shaderCode + '|' + JSON.stringify(bindings.map(b => ({ binding: b.binding, type: b.type })));
+    if (pipelineCache.has(key)) return pipelineCache.get(key);
+
+    const shaderModule = device.createShaderModule({ code: shaderCode });
+    const bindGroupLayout = device.createBindGroupLayout({
+      entries: _makeBindingLayoutEntries(bindings)
+    });
+
+    const pipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+      compute: { module: shaderModule, entryPoint: 'main' }
+    });
+
+    const entry = { pipeline, bindGroupLayout, shaderModule };
+    pipelineCache.set(key, entry);
+    return entry;
+  }
+
   async function init() {
     if (!navigator.gpu) {
       showStatus('WebGPUはこのブラウザでサポートされていません', 'error');
@@ -267,20 +300,8 @@
 
   // --- GPU処理実行 ---
   async function runShader(shaderCode, buffers, bindings, width, height) {
-    const shaderModule = device.createShaderModule({ code: shaderCode });
-
-    const bindGroupLayout = device.createBindGroupLayout({
-      entries: bindings.map(({ binding, type }) => ({
-        binding,
-        visibility: GPUShaderStage.COMPUTE,
-        buffer: { type }
-      }))
-    });
-
-    const pipeline = device.createComputePipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-      compute: { module: shaderModule, entryPoint: 'main' }
-    });
+    // Reuse pipeline/bind group layout/shader module where possible.
+    const { pipeline, bindGroupLayout } = getOrCreatePipeline(shaderCode, bindings);
 
     const bindGroup = device.createBindGroup({
       layout: bindGroupLayout,
