@@ -228,7 +228,7 @@
     // If the processed image is out-of-date or missing, generate it.
     if (configPhase != processedImages[i].phase) {
       const cfgToUse = (frameConfigs && frameConfigs[i]) ? frameConfigs[i] : globalConfig;
-      await processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
+      await window.WebGPUProcessor.processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
     }
 
     const procImg = processedImages[i][showMode];
@@ -408,6 +408,6 @@
 
   window.ConfigEditor.init();
   window.CanvasEditor.init();
-  initWebGPU();
+  window.WebGPUProcessor.init();
 
 })();
