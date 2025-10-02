@@ -157,6 +157,63 @@
       return btn;
     }
 
+  
+    // Add Toggle Button
+    addToggle(label, initialState = false, onToggle, draggable = false, activeColor = 'rgb(0,153,221)', inactiveColor = 'rgb(92,92,92)') {
+      const btn = document.createElement('button');
+      btn.innerHTML = `${label}`;
+      btn.style.display = 'block';
+      btn.style.marginTop = '2px';
+      btn.style.width = '100%';
+      btn.style.border = "none";
+      btn.style.padding = "6px";
+      btn.style.fontSize = "14px";
+      btn.style.color = 'white';
+      btn.dataset.toggled = initialState ? '1' : '0';
+
+      const applyBg = (toggled) => {
+        btn.style.backgroundColor = toggled ? activeColor : inactiveColor;
+        btn.setAttribute('aria-pressed', toggled ? 'true' : 'false');
+      };
+      applyBg(initialState);
+
+      const toggle = () => {
+        const was = btn.dataset.toggled === '1';
+        const now = !was;
+        btn.dataset.toggled = now ? '1' : '0';
+        applyBg(now);
+        if (typeof onToggle === 'function') onToggle(now);
+      };
+
+      if (!draggable) {
+        btn.addEventListener('click', () => {
+          toggle();
+        });
+      }
+
+      // Mirror draggable behavior from addButton so toggles can be applied while dragging multiple targets
+      btn.addEventListener('mousedown', (event) => {
+        this.windowIsClicked |= event.button == 0 ? 1 : 0;
+        if (typeof onToggle === 'function' && draggable) toggle();
+        btn.classList.add('active');
+      });
+      btn.addEventListener('mouseup', (event) => {
+        this.windowIsClicked &= event.button == 0 ? 0 : 1;
+        btn.classList.remove('active');
+      });
+      btn.addEventListener('mouseenter', () => {
+        if (typeof onToggle === 'function' && draggable && this.windowIsClicked) {
+          btn.classList.add('active');
+          toggle();
+        }
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.classList.remove('active');
+      });
+
+      this.container.appendChild(btn);
+      return btn;
+    }
     // Add Text Input
     addTextInput(label, onChange){
       const wrapper = document.createElement('div');
@@ -350,8 +407,10 @@
     // 表示切替ボタン
     windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => window.Core.setShowMode('original'), true, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => window.Core.setShowMode('processed'), true, 'rgb(0, 185, 40)');
-    windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => window.Core.setShowMode('pressure'), true);
-    windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => window.Core.setShowMode('log'), true);
+    const sharpnessBtn = windows[0].addToggle('<i class="fa-solid fa-pencil"></i> シャープネス', true, () => window.ConfigEditor.updateCurrentCfg(), false, 'rgba(255, 104, 104, 1)', 'rgba(114, 114, 114, 1)');
+    const denoiseList = windows[0].addDropdown('デノイズレベル', ['3','2','1','0'], () => window.ConfigEditor.updateCurrentCfg(), 'rgba(114, 114, 114, 1)');
+    // windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => window.Core.setShowMode('pressure'), true);
+    // windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => window.Core.setShowMode('log'), true);
 
     // その他
     const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
@@ -378,6 +437,8 @@
     }
     const getFileName = function(){ return fileNameInput.value.trim(); }
     const getFileExt = function(){ return fileExtList.value; }
+
+    const getCfgStats = function(){ return {enableSharpness:parseInt(sharpnessBtn.dataset.toggled), denoiseLevel:parseInt(denoiseList.value)}; }
   
     //// 共有オブジェクト
     window.FloatPanel = {
@@ -385,6 +446,7 @@
       blinkAllProcBtn,
       getFileName,
       getFileExt,
+      getCfgStats,
     }
     
     // Keyboard shortcuts: showMode toggle

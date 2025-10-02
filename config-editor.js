@@ -1,6 +1,44 @@
 (function() {
   // hard-coded default config
-  const DEFAULT_CONFIG = {"bgColor": "#e8eff2","bgLabelColor": "#ffffff","fileName": "デフォルト","version":2,"colorBlocks": [ {"sliders": {"threshold": "60","log": "20","weight": "50" },"numbers": {},"color": "#7b7f7e","labelColor": "#000000","enabled": true }, {"sliders": {"threshold": "60","log": "40","weight": "30" },"numbers": {},"color": "#d58b8d","labelColor": "#ff0000","enabled": true }, {"sliders": {"threshold": "55","log": "40","weight": "40" },"numbers": {},"color": "#9bb76f","labelColor": "#00ff00","enabled": true }, {"sliders": {"threshold": "56","log": "40","weight": "30" },"numbers": {},"color": "#94b6e3","labelColor": "#0000ff","enabled": true } ] }
+  const DEFAULT_CONFIG = {
+    "bgColor": "#e8eff2",
+    "bgLabelColor": "#ffffff",
+    "fileName": "デフォルト",
+    "enableSharpness": true,
+    "denoiseLevel": 3,
+    "enableDebug": false,
+    "version":2.1,
+    "colorBlocks": [
+      {
+        "sliders": {"threshold": "60","log": "20","weight": "50" },
+        "numbers": {},
+        "color": "#7b7f7e",
+        "labelColor": "#000000",
+        "enabled": true
+      },
+      {
+        "sliders": {"threshold": "60","log": "40","weight": "30" },
+        "numbers": {},
+        "color": "#d58b8d",
+        "labelColor": "#ff0000",
+        "enabled": true
+      },
+      {
+        "sliders": {"threshold": "55","log": "40","weight": "40" },
+        "numbers": {},
+        "color": "#9bb76f",
+        "labelColor": "#00ff00",
+        "enabled": true
+      },
+      {
+        "sliders": {"threshold": "56","log": "40","weight": "30" },
+        "numbers": {},
+        "color": "#94b6e3",
+        "labelColor": "#0000ff",
+        "enabled": true
+      }
+    ]
+  }
   // initialize config entry for this block
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
   // Html要素
@@ -56,7 +94,7 @@
   const loadLocalConfig = function() {
     const localConfig = localStorage.getItem("localConfigData");
     const parsed = JSON.parse(localConfig);
-    if (parsed && parsed.version == 2) {
+    if (parsed && parsed.version == 2.1) {
       try {
         loadConfig(parsed, true);
         showStatus('前回のConfigを復元しました。', 'success', 3000);
@@ -371,10 +409,20 @@
       cfg.colorBlocks[i].enabled = cb.checkbox.checked;
     });
 
+    const window0Stats = window.FloatPanel.getCfgStats();
+    cfg.enableSharpness = window0Stats.enableSharpness;
+    cfg.denoiseLevel = window0Stats.denoiseLevel;
+
     cfg.hash = culcCfgHash(cfg);
 
-    applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     currentConfig = cfg;
+    applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
+  }
+
+  const debugMode = function(stat = null){
+    if(stat === null) currentConfig.debugMode = !currentConfig.debugMode;
+    else currentConfig.debugMode = stat;
+    applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
   }
 
   const applyConfig = function(cfg, cfgToggleStates) {
@@ -393,8 +441,10 @@
 
   //// 共有オブジェクト
   window.ConfigEditor = {
-    init: init,
-    loadConfig: loadConfig,
+    init,
+    loadConfig,
+    updateCurrentCfg,
+    debugMode,
   }
 
 })();

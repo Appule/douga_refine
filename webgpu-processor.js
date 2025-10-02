@@ -118,9 +118,9 @@
       f32View[i * 8 + base + 3] = l;
       f32View[i * 8 + base + 4] = w;
     }
-        
+    
     const enableSharpness = (typeof cfg.enableSharpness !== 'undefined') ? cfg.enableSharpness : true;
-    const enableDenoise = (typeof cfg.enableDenoise !== 'undefined') ? cfg.enableDenoise : 3;
+    const denoiseLevel = (typeof cfg.denoiseLevel !== 'undefined') ? cfg.denoiseLevel : 3;
     const enableDebug   = (typeof cfg.enableDebug !== 'undefined')   ? cfg.enableDebug : false;
 
     device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
@@ -197,8 +197,8 @@
 
     // AffineBinary: preDenoise target depends on denoise flag
     let preDenoiseName = 'preDenoise';
-    if (enableDenoise === 1 || enableDenoise === 2) preDenoiseName = 'denoiseBuffer';
-    if (enableDenoise === 0) preDenoiseName = 'binary';
+    if (denoiseLevel === 1 || denoiseLevel === 2) preDenoiseName = 'denoiseBuffer';
+    if (denoiseLevel === 0) preDenoiseName = 'binary';
 
     pushStep(steps, 'AffineBinary', uniformsCode + affineBinaryShaderCode, [
       { name: 'uniform', binding: 0, type: 'uniform' },
@@ -209,7 +209,7 @@
     ]);
 
     // Denoise steps: 3x3 then 1x1 when enabled
-    if (enableDenoise === 3) {
+    if (denoiseLevel === 3) {
       // full denoise: AffineBinary -> preDenoise -> Denoise3x3 -> denoiseBuffer -> Denoise1x1 -> binary
       pushStep(steps, 'Denoise3x3', uniformsCode + denoise3x3ShaderCode, [
         { name: 'uniform', binding: 0, type: 'uniform' },
@@ -221,13 +221,13 @@
         { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
         { name: 'binary', binding: 2, type: 'storage' },
       ]);
-    } else if(enableDenoise === 2) {
+    } else if(denoiseLevel === 2) {
       pushStep(steps, 'Denoise2x2', uniformsCode + denoise2x2ShaderCode, [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
         { name: 'binary', binding: 2, type: 'storage' },
       ]);
-    } else if (enableDenoise === 1) {
+    } else if (denoiseLevel === 1) {
       pushStep(steps, 'Denoise1x1', uniformsCode + denoise1x1ShaderCode, [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
@@ -255,23 +255,25 @@
       device.queue.submit([encoder.finish()]);
     }
     
-    // モードと対応する readback バッファを定義 // [modename]: [readbackBufferName]
-    const modeToBuffer = {
+    // モードと対応する readback バッファを定義（cfg.enableDebug によって切り替え）
+    const enableDebug = (typeof cfg.enableDebug !== 'undefined') ? cfg.enableDebug : false;
+    const modeToBuffer = enableDebug ? {
       pressure: "readbackPressure",
       log: "readbackLoG",
       processed: "readback",
-      // DEBUG: "readbackDEB",
+    } : {
+      processed: "readback",
     };
-
+  
     const encoder = device.createCommandEncoder();
-    // 処理結果を readback バッファにコピー // [outputBufferName, readbackBufferName]
-    const copyMap = [
-      ["pressureOut", "readbackPressure"],
-      ["logOut", "readbackLoG"],
-      ["output", "readback"],
-      // ["DEBUG", "readbackDEB"],
-    ];
-
+    // 処理結果を readback バッファにコピー（debug が無効なら output のみコピー）
+    const copyMap = [];
+    if (enableDebug) {
+      copyMap.push(["pressureOut", "readbackPressure"]);
+      copyMap.push(["logOut", "readbackLoG"]);
+    }
+    copyMap.push(["output", "readback"]);
+  
     for (const [src, dst] of copyMap) {
       encoder.copyBufferToBuffer(buffers[src], 0, buffers[dst], 0, width * height * 4);
     }

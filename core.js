@@ -6,7 +6,7 @@
   let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, hash:0, saved:false }, ... ]
   let drawImages = []; // マーキング画像
   // モード
-  let showMode = 'processed'; // 現在の描画モード
+  let showMode = 'processed'; // 現在の描画モード enableSharpness: true, denoiseLevel: 3, enableDebug: false
   let cursorMode = 'camera'; // 現在のカーソルモード
   let frameIndex = 0; // 現在のフレーム番号
   // コンフィグ
