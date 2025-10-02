@@ -133,7 +133,6 @@
           { name: 'drawInput', binding: 2, type: 'read-only-storage' },
           { name: 'pSharp', binding: 3, type: 'storage' },
           { name: 'binary', binding: 4, type: 'storage' },
-          // { name: 'DEBUG', binding: 4, type: 'storage' },
         ]
       },
       { // 筆圧値：シャープネスフィルタ

@@ -122,7 +122,7 @@
       btn.innerHTML = `${label}`;
       btn.style.display = 'block';
       btn.style.marginTop = '2px';
-      btn.style.width = '160px';
+      btn.style.width = '100%';
       btn.style.backgroundColor = color;
       btn.style.border = "none";
       btn.style.padding = "6px";
@@ -246,7 +246,7 @@
       const wrapper = document.createElement('div');
       wrapper.style.display = 'block';
       wrapper.style.marginTop = '2px';
-      wrapper.style.width = '160px';
+      wrapper.style.width = '100%';
 
       // ラベル
       const span = document.createElement('span');
@@ -300,7 +300,7 @@
       // ボタン風のスタイルを直接当てる
       input.style.display = "block";
       input.style.marginTop = "2px";
-      input.style.width = "160px";
+      input.style.width = '100%';
       input.style.fontSize = "14px";
       input.style.color = "black";
 
