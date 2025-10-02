@@ -346,7 +346,7 @@
         <span style="margin-right:8px;">背景</span>
         <div class="picker-stack">
           <div class="picker-dropper">
-            <button class="bg-color-toggle" title="スポイトツール" style="width: 36px; height: 36px;"><i class="fa-solid fa-eye-dropper"></i></button>
+            <button class="color-toggle" title="スポイトツール" style="width: 36px; height: 36px;"><i class="fa-solid fa-eye-dropper"></i></button>
             <input type="color" class="color-picker bg-color-picker small-picker" value="${initialBgColor}" data-label="bgColorPicker" />
           </div>
           <span class="picker-arrow">▼</span>
@@ -359,6 +359,12 @@
     // wire references and listeners
     cfgElm.bgPicker = container.querySelector('.bg-color-picker');
     cfgElm.bgLabelPicker = container.querySelector('.bg-label-picker');
+
+    const enableDropperBtn = container.querySelector(".color-toggle");
+    enableDropperBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      enableDropperBtn.classList.toggle('active');
+    });
 
     cfgElm.bgPicker.addEventListener('change', () => {
       console.log(`背景カラー更新: ${currentConfig.bgColor}`);

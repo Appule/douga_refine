@@ -88,16 +88,18 @@
 
     editorContent.addEventListener("mousedown", (e) => {
       if (window.Core.getCursorMode() !== 'camera') return;
-      if (e.button === 1) { // 中ボタンでリセット
-        resetCanvasOffset();
-        e.preventDefault();
-        return;
-      }
-      if (e.button === 0) {
+      if (e.button === 0 || e.button === 1) {
         applyColorToActiveToggle(e);
         isDragging = true;
         startX = e.clientX - offsetX;
         startY = e.clientY - offsetY;
+      } else if (e.button === 2) {
+        const toggles = document.querySelectorAll('.color-toggle');
+        toggles.forEach(toggle => {
+          if (toggle.classList.contains('active')) {
+            toggle.classList.remove('active');
+          }
+        });
       }
     });
 
