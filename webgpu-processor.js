@@ -292,7 +292,6 @@
       buffer.unmap();
     }
 
-    processedData.phase = window.Core.getConfigPhase();
     window.Core.setProcessedData(processedData, idx);
     
     showStatus('処理が完了しました', 'success', 3000);

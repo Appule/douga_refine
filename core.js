@@ -3,7 +3,7 @@
   let fileInfos = [];
   // 画像データ
   let uploadedImages = []; // アップロードした画像
-  let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, phase:0, saved:false }, ... ]
+  let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, hash:0, saved:false }, ... ]
   let drawImages = []; // マーキング画像
   // モード
   let showMode = 'processed'; // 現在の描画モード
@@ -12,7 +12,6 @@
   // コンフィグ
   let globalConfig = {}; // グローバルコンフィグ
   let frameConfigs = []; // フレームコンフィグ
-  let configPhase = 0; // コンフィグの更新状態
 
   //// HTML要素
   // ページ設定
@@ -123,7 +122,7 @@
   // 画像データ setter/getter
   const initImageDatas = function(fis){
     uploadedImages = new Array(fis.length);
-    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, phase:0, saved:0 }});
+    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, hash:'', saved:0 }});
     drawImages = new Array(fis.length);
     frameConfigs = new Array(fis.length).fill(0);
     fileInfos = new Array(fis.length);
@@ -147,20 +146,16 @@
     processedImages[idx].pressure = data.pressure;
     processedImages[idx].log = data.log;
     processedImages[idx].processed = data.processed;
-    processedImages[idx].phase = data.phase;
   }
   const getProcessedData = function(idx = frameIndex){ 
     return processedImages[idx];
   }
 
-  const setDrawImage = function(img, idx = frameIndex){ 
-    drawImages[idx] = img;
+  const setDrawImage = async function(img, idx = frameIndex){
+    const hash = await getImageDataHash(img);
+    drawImages[idx] = {img, hash};
     
-    processedImages[idx].phase--;
     prepareAndShowImage(idx);
-  }
-  const getDrawImage = function(idx = frameIndex){ 
-    return drawImages[idx];
   }
 
   // モード setter/getter
@@ -189,7 +184,6 @@
   // コンフィグ setter/getter
   const setGlobalConfig = function(cfg){
     globalConfig = cfg;
-    configPhase++;
     prepareAndShowImage();
   }
   const getGlobalConfig = function(){ return JSON.parse(JSON.stringify(globalConfig)); }
@@ -199,7 +193,6 @@
       if(toggles[i]) {
         frameConfigs[i] = cfg;
         window.FrameManager.drawGear(i);
-        processedImages[i].phase--;
       }
     }
     prepareAndShowImage();
@@ -208,13 +201,18 @@
     return frameConfigs[idx];
   }
 
-  const incrementPhase = function(){ 
-    configPhase++; 
+  const checkLatest = function(idx){ return frameConfigs[idx] ? frameConfigs[idx].hash == processedImages[idx].hash : globalConfig.hash == processedImages[idx].hash }
+
+  const clearFrameCfg = function(){
+    const toggles = window.FrameManager.getCfgToggleStates();
+    for(let i = 0; i < frameConfigs.length; ++i){
+      if(toggles[i]) {
+        frameConfigs[i] = null;
+      }
+    }
+    window.FrameManager.clearGear();
     prepareAndShowImage();
   }
-  const getConfigPhase = function(){ return configPhase; }
-  const checkPhase = function(idx) { return processedImages[idx]?.phase && (processedImages[idx].phase === configPhase);}
-
 
   // 画像処理・描画関数
   async function prepareAndShowImage(i = frameIndex) {
@@ -225,10 +223,10 @@
       return;
     }
 
-    // If the processed image is out-of-date or missing, generate it.
-    if (configPhase != processedImages[i].phase) {
-      const cfgToUse = (frameConfigs && frameConfigs[i]) ? frameConfigs[i] : globalConfig;
+    const cfgToUse = frameConfigs[i] ? frameConfigs[i] : globalConfig;
+    if (cfgToUse.hash != processedImages[i].hash) {
       await window.WebGPUProcessor.processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
+      processedImages[i].hash = cfgToUse.hash;
     }
 
     const procImg = processedImages[i][showMode];
@@ -325,7 +323,7 @@
     }
     const ok = confirm(`「${fileName}_XXXX.${fileFormat}」という名前で保存しますか？`);
     if (!ok) {
-      return; // キャンセルされたら処理を中止
+      return;
     }
     
     // 画像処理
@@ -383,7 +381,6 @@
     setProcessedData,
     getProcessedData,
     setDrawImage,
-    getDrawImage,
     // モード
     setShowMode,
     getShowMode,
@@ -396,9 +393,8 @@
     getGlobalConfig,
     setFrameConfigs,
     getFrameConfig,
-    incrementPhase,
-    getConfigPhase,
-    checkPhase,
+    checkLatest,
+    clearFrameCfg,
     // 関数
     prepareAndShowImage,
     processAllImages,

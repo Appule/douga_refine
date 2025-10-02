@@ -5,8 +5,10 @@
   const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
   // Html要素
   const importBtn = document.getElementById('importColorsBtn');
+  const exportBtn = document.getElementById('exportColorsBtn');
   const fileInput = document.getElementById('configFileInput');
   const fileNameInput = document.getElementById('configFileNameInput');
+  const clearFrameCfgBtn = document.getElementById('clearFrameCfgBtn');
   // 現在のコンフィグデータ
   let currentConfig = { };
 
@@ -21,7 +23,7 @@
     });
     fileNameInput.addEventListener('change', () => {
       currentConfig.fileName = fileNameInput.value;
-      colorBlocksUpdated(false);
+      updateCurrentCfg();
     })
     /** ドラッグ&ドロップでファイル処理 */
     const cfgDropZone = document.getElementById('cfg-drop-zone');
@@ -40,13 +42,15 @@
         loadConfigFile(e.dataTransfer.files[0]);
       }
     });
+    // フレームコンフィグをクリア
+    clearFrameCfgBtn.addEventListener('click', () => window.Core.clearFrameCfg());
 
     createBgBlock();
     loadLocalConfig();
   }
 
   // エクスポートボタン
-  document.getElementById('exportColorsBtn').addEventListener('click', saveConfig);
+  exportBtn.addEventListener('click', saveConfig);
 
   // ローカルストレージからコンフィグをロード
   const loadLocalConfig = function() {
@@ -54,14 +58,14 @@
     const parsed = JSON.parse(localConfig);
     if (parsed && parsed.version == 2) {
       try {
-        updateConfig(parsed, true);
+        loadConfig(parsed, true);
         showStatus('前回のConfigを復元しました。', 'success', 3000);
       } catch (error) {
         console.error('Error loading local config:', error);
         showStatus('前回のConfigの復元に失敗しました。', 'error', 3000);
       }
     } else {
-      updateConfig(DEFAULT_CONFIG);
+      loadConfig(DEFAULT_CONFIG, true);
       showStatus('前回のConfigは互換性がありません。', 'error', 3000);
     }
   }
@@ -76,7 +80,7 @@
         const fileName = file.name.split(".")[0];
         parsed.fileName = fileName;
         localStorage.setItem("localConfigData", JSON.stringify(parsed));
-        updateConfig(parsed, true);
+        loadConfig(parsed, true);
         showStatus('Configファイルの読み込みが完了しました。', 'success', 3000);
       } catch (error) {
         console.error('Error loading config:', error);
@@ -188,17 +192,17 @@
     
     addColorBtn.addEventListener('click', () => {
       createColorBlock(); // create by default value
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
 
     // カラーピッカーのイベント
     mainPicker.addEventListener('change', () => {
       console.log(`サンプルカラー更新: ${mainPicker.value}`);
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
     labelPicker.addEventListener('change', () => {
       console.log(`ラベルカラー更新: ${labelPicker.value}`);
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
     
     // スライダーと数値インプットを紐づけ
@@ -211,7 +215,7 @@
       slider.addEventListener("change", () => {
         number.value = slider.value;
         console.log(`スライダー更新: ${slider.value}`);
-        colorBlocksUpdated(true);
+        updateCurrentCfg();
       });
       // range → number
       slider.addEventListener("input", () => {
@@ -225,7 +229,7 @@
         slider.value = val;
         number.value = val;
         console.log(`数値インプット更新: ${val}`);
-        colorBlocksUpdated(true);
+        updateCurrentCfg();
       });
       // number → range
       number.addEventListener("input", () => {
@@ -246,20 +250,20 @@
         number.value = val;
         slider.value = val;
         console.log(`数値インプット更新: ${val}`);
-        colorBlocksUpdated(true);
+        updateCurrentCfg();
       });
       // button → range/number
       decreaseBtn.addEventListener("click", () => {
         slider.value = Math.max(Number(slider.min), Number(slider.value) - Number(slider.step));
         number.value = slider.value;
         console.log(`数値更新: ${slider.value}`);
-        colorBlocksUpdated(true);
+        updateCurrentCfg();
       });
       increaseBtn.addEventListener("click", () => {
         slider.value = Math.max(Number(slider.min), Number(slider.value) + Number(slider.step));
         number.value = slider.value;
         console.log(`数値更新: ${slider.value}`);
-        colorBlocksUpdated(true);
+        updateCurrentCfg();
       });
     });
 
@@ -274,11 +278,11 @@
     
     // チェックボックスのイベント
     checkbox.addEventListener('change', () => {
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
 
     // グローバル変数を更新
-    colorBlocksUpdated(true);
+    updateCurrentCfg();
   }
 
   /* Create the background picker block and wire its listeners.
@@ -308,18 +312,18 @@
 
     cfgElm.bgPicker.addEventListener('change', () => {
       console.log(`背景カラー更新: ${currentConfig.bgColor}`);
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
     cfgElm.bgLabelPicker.addEventListener('change', () => {
       console.log(`背景ラベルカラー更新: ${currentConfig.bgLabelColor}`);
-      colorBlocksUpdated(true);
+      updateCurrentCfg();
     });
   }
 
   // configを更新・描画
-  const updateConfig = function(cfg, isEdited = false){
+  const loadConfig = function(cfg, onlyShow = false){
     currentConfig = cfg;
-    if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
+    if(onlyShow) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     updateCfgElm(cfg);
   }
 
@@ -350,8 +354,8 @@
   }
 
   // cfgElmでcurrentConfigを更新
-  const colorBlocksUpdated = function(isEdited = false) {
-    let cfg = {};
+  const updateCurrentCfg = function() {
+    const cfg = {};
     cfg.bgColor = cfgElm.bgPicker.value;
     cfg.bgLabelColor = cfgElm.bgLabelPicker.value;
 
@@ -367,8 +371,10 @@
       cfg.colorBlocks[i].enabled = cb.checkbox.checked;
     });
 
+    cfg.hash = culcCfgHash(cfg);
+
+    applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     currentConfig = cfg;
-    if(isEdited) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
   }
 
   const applyConfig = function(cfg, cfgToggleStates) {
@@ -377,13 +383,18 @@
     } else {
       window.Core.setGlobalConfig(cfg);
     }
-    window.Core.prepareAndShowImage();
+  }
+
+  const culcCfgHash = function(cfg){
+    const copy = JSON.parse(JSON.stringify(cfg));
+    delete copy.fileName;
+    return JSON.stringify(copy);
   }
 
   //// 共有オブジェクト
   window.ConfigEditor = {
     init: init,
-    updateConfig: updateConfig,
+    loadConfig: loadConfig,
   }
 
 })();

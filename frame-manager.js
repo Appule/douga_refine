@@ -28,6 +28,9 @@
       fbtn.addEventListener("mousedown", async (event) => {
         buttonIsPressed |= event.button == 0 ? 1 : 0;
         fbtn.classList.add('active');
+        cfgToggleStates.fill(false);
+        if(cbtn.innerHTML) cfgToggleStates[index] = true;
+        updateCfgBtns();
         window.Core.setFrameIndex(index);
         await window.Core.prepareAndShowImage(index);
         // frameIndexのボタンを強調表示
@@ -36,17 +39,13 @@
       fbtn.addEventListener("mouseenter", async () => {
         if(buttonIsPressed) {
           fbtn.classList.add('active');
+          cfgToggleStates.fill(false);
+          if(cbtn.innerHTML) cfgToggleStates[index] = true;
+          updateCfgBtns();
           window.Core.setFrameIndex(index);
           await window.Core.prepareAndShowImage(index);
           // frameIndexのボタンを強調表示
           accentFrmBtn(index);
-          if(cfgIsPressed){
-            cfgToggleStates.fill(false);
-            for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
-              cfgToggleStates[i] = true;
-            }
-            updateCfgBtns();
-          }
         }
         // プレビュー
         const imgData = window.Core.getUploadedImage(index);
@@ -128,9 +127,7 @@
       frameBtns[index] = {fbtn, cbtn};
       menuContent.appendChild(row);
     });
-    ++window.Core.configPhase;
     accentFrmBtn(window.Core.getFrameIndex());
-
   }
 
   // フレームボタンをハイライト
@@ -161,11 +158,11 @@
     // カラー編集のタイトル更新
     if (noActive) {
       colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
-      window.ConfigEditor.updateConfig(window.Core.getGlobalConfig(), false);
+      window.ConfigEditor.loadConfig(window.Core.getGlobalConfig());
     } else {
       colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
       const cfg = window.Core.getFrameConfig(frameCfgIndex) ? window.Core.getFrameConfig(frameCfgIndex) : window.Core.getGlobalConfig();
-      window.ConfigEditor.updateConfig(cfg, false);
+      window.ConfigEditor.loadConfig(cfg);
     }
   }
 
@@ -242,10 +239,12 @@
     for (let j = 0; j < frameBtns.length; j++) {
       const btns = frameBtns[j];
       if (!btns) continue;
-      const done = window.Core.checkPhase(j);
+      const done = window.Core.checkLatest(j);
       if (!done) {
         allProcessed = false;
         btns.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
+      } else if(btns.cbtn.innerHTML) {
+        btns.fbtn.style.backgroundColor = 'rgba(230, 129, 71, 1)';
       } else {
         btns.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
       }
@@ -273,12 +272,21 @@
     frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
   }
 
+  const clearGear = function(){
+    for(let i = 0; i < frameBtns.length; ++i){
+      if(cfgToggleStates[i]) frameBtns[i].cbtn.innerHTML = '';
+    }
+    cfgToggleStates.fill(false);
+    updateCfgBtns();
+  }
+
   //// 共有オブジェクト
   window.FrameManager = {
     init,
     updateFrameButtons,
     getCfgToggleStates,
     drawGear,
+    clearGear,
   }
 
 })();

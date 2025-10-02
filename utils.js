@@ -65,6 +65,15 @@ function hexToHue(colInt32) {
   return h;
 }
 
+async function getImageDataHash(imageData) {
+  const buffer = imageData.data.buffer; // Uint8ClampedArray → ArrayBuffer
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
+
 // Canvas ImageData → PNG Blob
 const encodePNG = function(imgData) {
   return new Promise((resolve, reject) => {
