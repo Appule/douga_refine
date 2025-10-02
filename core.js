@@ -3,7 +3,7 @@
   let fileInfos = [];
   // 画像データ
   let uploadedImages = []; // アップロードした画像
-  let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, hash:0, saved:false }, ... ]
+  let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, hash:0, dhash:0, saved:false }, ... ]
   let drawImages = []; // マーキング画像
   // モード
   let showMode = 'processed'; // 現在の描画モード enableSharpness: true, denoiseLevel: 3, enableDebug: false
@@ -328,18 +328,7 @@
     }
     
     // 画像処理
-    const images = processedImages;
-    let allProcessed = false;
-    for (let j = 0; j < uploadedImages.length; j++) {
-      if (!images[j]?.processed || configPhase != images[j]?.phase) {
-        allProcessed = false;
-        break;
-      }
-      allProcessed = true;
-    }
-    if(!allProcessed){
-      await processAllImages();
-    }
+    await processAllImages();
     showStatus('ZIPファイルを生成中...', 'info');
 
     for (let i = 0; i < processedImages.length; i++) {
@@ -367,7 +356,7 @@
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      if(i < processedImages.length - 1) await delay(200);
+      await delay(200);
     }
 
     await prepareAndShowImage();

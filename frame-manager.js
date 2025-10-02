@@ -30,6 +30,7 @@
         fbtn.classList.add('active');
         cfgToggleStates.fill(false);
         if(cbtn.innerHTML) cfgToggleStates[index] = true;
+        frameCfgIndex = index;
         updateCfgBtns();
         window.Core.setFrameIndex(index);
         await window.Core.prepareAndShowImage(index);
@@ -41,6 +42,7 @@
           fbtn.classList.add('active');
           cfgToggleStates.fill(false);
           if(cbtn.innerHTML) cfgToggleStates[index] = true;
+          frameCfgIndex = index;
           updateCfgBtns();
           window.Core.setFrameIndex(index);
           await window.Core.prepareAndShowImage(index);
