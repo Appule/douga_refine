@@ -89,7 +89,7 @@
     editorContent.addEventListener("mousedown", (e) => {
       if (window.Core.getCursorMode() !== 'camera') return;
       if (e.button === 0 || e.button === 1) {
-        applyColorToActiveToggle(e);
+        if(e.button === 0) applyColorToActiveToggle(e);
         isDragging = true;
         startX = e.clientX - offsetX;
         startY = e.clientY - offsetY;
