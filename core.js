@@ -224,7 +224,7 @@
     }
 
     const cfgToUse = frameConfigs[i] ? frameConfigs[i] : globalConfig;
-    if (cfgToUse.hash != processedImages[i].hash || drawImages[i]?.hash != processedImages[i].dhash) {
+    if (cfgToUse.hash != processedImages[i].hash || (drawImages[i] && (drawImages[i].hash != processedImages[i].dhash))) {
       await window.WebGPUProcessor.processImage(uploadedImages[i], drawImages[i]?.img, cfgToUse, i);
       processedImages[i].hash = cfgToUse.hash;
       processedImages[i].dhash = drawImages[i]?.hash ? drawImages[i].hash : '';
