@@ -65,6 +65,42 @@ function hexToHue(colInt32) {
   return h;
 }
 
+function hexToRgb(hex) {
+  hex = hex.replace('#', '');
+  if (hex.length === 8) {
+    // rrggbbaa
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    // const a = parseInt(hex.slice(6, 8), 16); // アルファが必要なら使う
+    return { r, g, b };
+  } else if (hex.length === 6) {
+    // rrggbb
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return { r, g, b };
+  } else {
+    throw new Error('hex format must be #rrggbb or #rrggbbaa');
+  }
+}
+
+async function hashToColor(hash, s=70, l=50) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(hash);
+
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+  // 最初の2バイトを使って色相を生成（0〜65535 → 0〜360）
+  const hueSeed = (hashArray[0] << 8) + hashArray[1];
+  const hue = hueSeed % 360;
+
+  return `hsl(${hue}, ${s}%, ${l}%)`;
+}
+
+
+
 async function getImageDataHash(imageData) {
   const buffer = imageData.data.buffer; // Uint8ClampedArray → ArrayBuffer
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);

@@ -268,8 +268,9 @@
 
   const getCfgToggleStates = function(){ return cfgToggleStates; }
 
-  const drawGear = function(i){
+  const drawGear = async function(i){
     frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
+    frameBtns[i].cbtn.style.color = await hashToColor(window.Core.getFrameConfig(i).hash, 80, 65);
   }
 
   const clearGear = function(){

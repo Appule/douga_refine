@@ -13,7 +13,7 @@
 
   // カメラワーク / 範囲選択処理
   let zoom = 1;
-  const zoomLevels = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const zoomLevels = [0.5, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20];
   let offsetX = 0, offsetY = 0;
   let isDragging = false;
   let startX, startY;
@@ -21,6 +21,9 @@
   let lassoPoints  = [];
   // Fill alpha (0.1 .. 1.0) adjustable by pressing keys 1..9 and 0 (0 -> 1.0)
   let fillAlpha = 0.1;
+  let mouseX = 0, mouseY = 0;
+  // current pixel color under cursor (RGBA 0-255)
+  let currentPixelColor = { r: 0, g: 0, b: 0, a: 0 };
 
   const init = function(){
     // dragoverイベントでdrop許可
@@ -91,6 +94,7 @@
         return;
       }
       if (e.button === 0) {
+        applyColorToActiveToggle(e);
         isDragging = true;
         startX = e.clientX - offsetX;
         startY = e.clientY - offsetY;
@@ -98,6 +102,10 @@
     });
 
     editorContent.addEventListener("mousemove", (e) => {
+      const containerRect = editorContent.getBoundingClientRect();
+      mouseX = e.clientX - containerRect.left;
+      mouseY = e.clientY - containerRect.top;
+
       if (window.Core.getCursorMode() !== 'camera' || !isDragging) return;
       offsetX = e.clientX - startX;
       offsetY = e.clientY - startY;
@@ -169,11 +177,8 @@
       // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
       if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        const containerRect = editorContent.getBoundingClientRect();
-        const centerX = containerRect.width / 2;
-        const centerY = containerRect.height / 2;
-        if (isShift) changeZoomStep(-1, centerX, centerY);
-        else changeZoomStep(1, centerX, centerY);
+        if (isShift) changeZoomStep(-1, mouseX, mouseY);
+        else changeZoomStep(1, mouseX, mouseY);
         return;
       }
   
@@ -258,6 +263,7 @@
     if (h1) h1.remove();
     if (p) p.remove();
     editorContent.style.alignItems = 'initial';
+    editorContent.style.justifyContent = 'initial';
   }
 
   function findClosestZoomIndex(z) {
@@ -378,6 +384,53 @@
       x: (clientX - rect.left) * scaleX,
       y: (clientY - rect.top) * scaleY,
     };
+  }
+
+  function updatePixelColorAtMouse(clientX, clientY) {
+    const pt = screenToCanvas(clientX, clientY);
+    const x = Math.floor(pt.x);
+    const y = Math.floor(pt.y);
+
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) {
+      currentPixelColor = { r: 0, g: 0, b: 0, a: 0 };
+      return currentPixelColor;
+    }
+
+    const imageData = ctx.getImageData(x, y, 1, 1).data;
+    currentPixelColor = { r: imageData[0], g: imageData[1], b: imageData[2], a: imageData[3] };
+    return currentPixelColor;
+  }
+
+  function applyColorToActiveToggle(e) {
+    // 1. ピクセル色を取得
+    const { r, g, b, a } = updatePixelColorAtMouse(e.clientX, e.clientY);
+    // 2. .color-toggle のうち active な要素を探す
+    const toggles = document.querySelectorAll('.color-toggle');
+    toggles.forEach(toggle => {
+      if (toggle.classList.contains('active')) {
+        // 3. 隣の color input を取得（nextElementSibling などで）
+        const colorInput = toggle.nextElementSibling;
+        if (colorInput && colorInput.type === 'color') {
+          // 4. 値を更新
+          const toHex = (v) => v.toString(16).padStart(2, '0');
+          if (e.shiftKey) {
+            const currentRgb = hexToRgb(colorInput.value);
+            const avgR = Math.round((currentRgb.r + r) / 2);
+            const avgG = Math.round((currentRgb.g + g) / 2);
+            const avgB = Math.round((currentRgb.b + b) / 2);
+            const hexColor = `#${toHex(avgR)}${toHex(avgG)}${toHex(avgB)}`;
+            colorInput.value = hexColor;
+          } else {
+            toggle.classList.remove('active');
+            const hexColor = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+            colorInput.value = hexColor;
+          }
+          // 5. change イベントを発火
+          const event = new Event('change', { bubbles: true });
+          colorInput.dispatchEvent(event);
+        }
+      }
+    });
   }
 
   const showImg = function(img){

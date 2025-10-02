@@ -118,6 +118,11 @@ body, html {
 .config-btn {
   flex: 0 0 20%;
   background-color: rgb(230, 129, 71);
+  text-shadow:
+    -0.5px -0.5px 0 white,
+     0.5px -0.5px 0 white,
+    -0.5px  0.5px 0 white,
+     0.5px  0.5px 0 white;
 }
 
 .frame-item:hover {
@@ -190,8 +195,15 @@ body, html {
   align-items: center;
 }
 
+.picker-dropper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
 .color-picker {
-  width: 80px;
+  width: 45px;
   height: 45px;
   border: 1px solid #ccc;
   padding: 0;

@@ -119,9 +119,9 @@
       f32View[i * 8 + base + 4] = w;
     }
     
-    const enableSharpness = (typeof cfg.enableSharpness !== 'undefined') ? cfg.enableSharpness : true;
-    const denoiseLevel = (typeof cfg.denoiseLevel !== 'undefined') ? cfg.denoiseLevel : 3;
-    const enableDebug   = (typeof cfg.enableDebug !== 'undefined')   ? cfg.enableDebug : false;
+    const enableSharpness = cfg.enableSharpness;
+    const denoiseLevel = cfg.denoiseLevel;
+    const enableDebug   = cfg.enableDebug;
 
     device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
 

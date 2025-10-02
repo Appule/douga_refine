@@ -156,7 +156,10 @@
       <button class="color-delete" title="削除">×</button>
       <div class="color-control-group">
         <div class="picker-stack">
-          <input type="color" class="color-picker main-picker" value="${initialColor}" />
+          <div class="picker-dropper">
+            <button class="color-toggle" title="スポイトツール" style="width: 36px; height: 36px;"><i class="fa-solid fa-eye-dropper"></i></button>
+            <input type="color" class="color-picker main-picker small-picker" value="${initialColor}" />
+          </div>
           <span class="picker-arrow">▼</span>
           <input type="color" class="color-picker label-picker" value="${initialLabelColor}" >
         </div>
@@ -211,6 +214,12 @@
     const sliders     = block.querySelectorAll(".color-slider"); // [0]=threshold, [1]=log, [2]=weight
     const numbers     = block.querySelectorAll(".slider-value"); // [0]=threshold, [1]=log, [2]=weight
     const buttons     = block.querySelectorAll(".arrow"); // [0/1]=thresholdIn/Dc, [2/3]=logIn/Dc, [4/5]=weightIn/Dc
+    const enableDropperBtn = block.querySelector(".color-toggle");
+
+    enableDropperBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      enableDropperBtn.classList.toggle('active');
+    });
 
     cfgElm.colorBlocks.push({
       checkbox,
@@ -336,7 +345,10 @@
       <div class="bg-block" style="background:#ffffff; display:flex; justify-content:center; align-items:center; height:80px; padding:20px; margin-right:4px;">
         <span style="margin-right:8px;">背景</span>
         <div class="picker-stack">
-          <input type="color" class="color-picker bg-color-picker" value="${initialBgColor}" data-label="bgColorPicker" />
+          <div class="picker-dropper">
+            <button class="bg-color-toggle" title="スポイトツール" style="width: 36px; height: 36px;"><i class="fa-solid fa-eye-dropper"></i></button>
+            <input type="color" class="color-picker bg-color-picker small-picker" value="${initialBgColor}" data-label="bgColorPicker" />
+          </div>
           <span class="picker-arrow">▼</span>
           <input type="color" class="color-picker bg-label-picker" value="${initialLabelColor}" />
         </div>
