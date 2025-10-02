@@ -122,7 +122,7 @@
   // 画像データ setter/getter
   const initImageDatas = function(fis){
     uploadedImages = new Array(fis.length);
-    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, hash:'', saved:0 }});
+    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, hash:'', dhash:'', saved:0 }});
     drawImages = new Array(fis.length);
     frameConfigs = new Array(fis.length).fill(0);
     fileInfos = new Array(fis.length);
@@ -224,9 +224,10 @@
     }
 
     const cfgToUse = frameConfigs[i] ? frameConfigs[i] : globalConfig;
-    if (cfgToUse.hash != processedImages[i].hash) {
-      await window.WebGPUProcessor.processImage(uploadedImages[i], drawImages[i], cfgToUse, i);
+    if (cfgToUse.hash != processedImages[i].hash || drawImages[i]?.hash != processedImages[i].dhash) {
+      await window.WebGPUProcessor.processImage(uploadedImages[i], drawImages[i]?.img, cfgToUse, i);
       processedImages[i].hash = cfgToUse.hash;
+      processedImages[i].dhash = drawImages[i]?.hash ? drawImages[i].hash : '';
     }
 
     const procImg = processedImages[i][showMode];

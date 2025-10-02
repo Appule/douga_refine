@@ -436,8 +436,8 @@
   const showImg = function(img){
     if(img) ctx.putImageData(img, 0, 0);
   }
-  const drawImg = function(img){
-    if(img) dctx.putImageData(img, 0, 0);
+  const drawImg = function(data){
+    if(data?.img) dctx.putImageData(data.img, 0, 0);
     else {
       dctx.save();
       dctx.fillStyle = '#FFFFFF';
