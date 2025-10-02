@@ -40,7 +40,7 @@
     ]
   }
   // initialize config entry for this block
-  const cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
+  let cfgElm = { bgPicker: null, bgLabelPicker: null, colorBlocks: [] };
   // Html要素
   const importBtn = document.getElementById('importColorsBtn');
   const exportBtn = document.getElementById('exportColorsBtn');
@@ -319,7 +319,13 @@
       e.stopPropagation();
       const ok = window.confirm("本当にこの色を削除しますか？");
       if (ok) {
-        deleteColorBlock(colorBlockSize);
+        const allColorBlocks = container.querySelectorAll('.color-block');
+        allColorBlocks[colorBlockSize].remove();
+        cfgElm.colorBlocks.splice(colorBlockSize, 1);
+        const newCfg = updateCurrentCfg();
+        allColorBlocks.forEach(e=>e.remove());
+        cfgElm.colorBlocks.length = 0;
+        loadConfig(newCfg, true);
       }
     });
     
@@ -435,6 +441,8 @@
 
     currentConfig = cfg;
     applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
+
+    return cfg;
   }
 
   const debugMode = function(stat = null){
