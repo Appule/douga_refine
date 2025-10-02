@@ -493,7 +493,7 @@ const affineBinaryShaderCode = /* glsl */`
   }
 `;
 
-const denoise3x3ShaderCode = /* glsl */`
+const denoise1x1ShaderCode = /* glsl */`
   @group(0) @binding(0) var<uniform> uniforms: Uniforms;
   @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
   @group(0) @binding(2) var<storage, read_write> imageOut: array<u32>;
@@ -554,7 +554,138 @@ const denoise3x3ShaderCode = /* glsl */`
   }
 `;
 
-const denoise5x5ShaderCode = /* glsl */`
+const denoise2x2ShaderCode = /* glsl */`
+  @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+  @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
+  @group(0) @binding(2) var<storage, read_write> imageOut: array<u32>;
+  
+  const outer = array<vec2<i32>, 16>(
+    vec2<i32>(-2,-2), vec2<i32>(-2, 2), vec2<i32>(2, 2), vec2<i32>( 2,-2),
+    vec2<i32>(-2,-1), vec2<i32>(-1, 2), vec2<i32>(2, 1), vec2<i32>( 1,-2),
+    vec2<i32>(-2, 0), vec2<i32>( 0, 2), vec2<i32>(2, 0), vec2<i32>( 0,-2),
+    vec2<i32>(-2, 1), vec2<i32>( 1, 2), vec2<i32>(2,-1), vec2<i32>(-1,-2),
+  );
+
+  const next = array<vec2<i32>, 8>(
+    vec2<i32>(0, -1), vec2<i32>(-1, 0), vec2<i32>(1, 0), vec2<i32>(0, 1),
+    vec2<i32>(-1, -1), vec2<i32>(1, -1), vec2<i32>(-1, 1), vec2<i32>(1, 1),
+  );
+
+  @compute @workgroup_size(8, 8)
+  fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let width = uniforms.width;
+    let height = uniforms.height;
+
+    if (global_id.x >= width || global_id.y >= height) {
+      return;
+    }
+
+    let x = i32(global_id.x);
+    let y = i32(global_id.y);
+    let w = i32(width);
+    let h = i32(height);
+    let index = y * w + x;
+
+    let pixel = imageIn[u32(index)];
+    // col = 0xCCIIPPFF: C: color index, I: intensity, P: padding, F: always 255
+    let colId = (pixel >> 0u) & 0xFFu; // 0-7bit: 色ID (0~8)
+
+    // 白ピクセルは対象外
+    if (colId == 8u) {
+      let outPixel = colId | (0xFFu << 8u) | (0x00u << 16u) | (0xFFu << 24u);
+      imageOut[u32(index)] = outPixel;
+      return;
+    }
+
+    // --- Step1: 隣接チェック（3x3 の内側） ---
+    // counts は各色の隣接数を保持（後段の多数決で使用）
+    var counts: array<u32, 9>;
+    // sameNeighborCount / lastNx/lastNy は、
+    // 「自身と同じ色」の隣接ピクセルがちょうど1つだった場合に
+    // そのピクセルに、外周で見つかった同色ピクセルが隣接しているかを判定するために使う
+    var sameNeighborCount: u32 = 0u;
+    var lastNx: i32 = 0;
+    var lastNy: i32 = 0;
+    for (var i = 0; i < 8; i++) {
+      let dx = next[i].x;
+      let dy = next[i].y;
+      let sx = clamp(x + dx, 0, w - 1);
+      let sy = clamp(y + dy, 0, h - 1);
+      let sample = imageIn[u32(sy * w + sx)];
+      let cid = (sample & 0xFFu);
+      counts[cid] += 1u;
+      // 自身と同じ色ならカウントと座標を記録
+      if (cid == colId) {
+        sameNeighborCount = sameNeighborCount + 1u;
+        lastNx = sx;
+        lastNy = sy;
+      }
+    }
+    
+    // --- Step2: 外周チェック（5x5 の外周） ---
+    // foundOuter は外周に同色が存在するか
+    // foundOuterAdjacentToSingleNeighbor は「外周で見つかった同色ピクセルが
+    //  (Step1で見つかった唯一の隣接ピクセル) に隣接しているか」を表す
+    var foundOuter: bool = false;
+    var foundOuterAdjacentToSingleNeighbor: bool = false;
+    for (var i = 0; i < 16; i++) {
+      let dx = outer[i].x;
+      let dy = outer[i].y;
+      let sx = clamp(x + dx, 0, w - 1);
+      let sy = clamp(y + dy, 0, h - 1);
+      let sample = imageIn[u32(sy * w + sx)];
+      if ((sample & 0xFFu) == colId) {
+        foundOuter = true;
+        // Step1 で自身と同じ色の隣接ピクセルが「ちょうど1つ」だった場合のみ、
+        // その唯一の隣接ピクセルに対して外周のピクセルが隣接しているかを判定する
+        if (sameNeighborCount == 1u) {
+          var adx: i32 = sx - lastNx;
+          if (adx < 0) { adx = -adx; }
+          var ady: i32 = sy - lastNy;
+          if (ady < 0) { ady = -ady; }
+          // 外周ピクセルが唯一の隣接ピクセルに 8近傍で接しているか
+          if (adx <= 1 && ady <= 1) {
+            foundOuterAdjacentToSingleNeighbor = true;
+            // 隣接が確認できたのでループを抜けて良い
+            break;
+          }
+          // 隣接していない外周同色ピクセルは見つかったが
+          // 「唯一の隣接ピクセルと隣接していない」ため、探索は続ける
+        } else {
+          // Step1 の同色隣接が複数ある場合は外周に同色が見つかっただけで十分
+          break;
+        }
+      }
+    }
+    
+    var foundExtra = foundOuter && (sameNeighborCount > 1u || (sameNeighborCount == 1u && foundOuterAdjacentToSingleNeighbor));
+    
+    // --- Step3: 色多数決（5x5 内のカウントをもとに多数色を決定） ---
+    var maxCount = counts[0];
+    var maxIdx: u32 = 0u;
+    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
+    for (var i: u32 = 1u; i < colorNum+1; i++) {
+      if (counts[i] > maxCount) {
+        maxCount = counts[i];
+        maxIdx = i;
+      }
+    }
+    
+    // --- Step4: 判定 ---
+    var outId: u32 = colId;
+    if (counts[colId] > 1 || foundExtra) {
+      outId = colId;
+    } else {
+      outId = maxIdx;
+    }
+    
+    // col = 0xCCIIPPFF: C: color index, I: intensity, P: padding, F: always 255
+    let outPixel = outId | (0xFFu << 8u) | (0x00u << 16u) | (0xFFu << 24u);
+    imageOut[u32(index)] = outPixel;
+  }
+`;
+
+const denoise3x3ShaderCode = /* glsl */`
   @group(0) @binding(0) var<uniform> uniforms: Uniforms;
   @group(0) @binding(1) var<storage, read> imageIn: array<u32>;
   @group(0) @binding(2) var<storage, read_write> imageOut: array<u32>;
@@ -583,6 +714,7 @@ const denoise5x5ShaderCode = /* glsl */`
     let x = i32(global_id.x);
     let y = i32(global_id.y);
     let w = i32(width);
+    let h = i32(height);
     let index = y * w + x;
 
     let pixel = imageIn[u32(index)];
@@ -596,17 +728,17 @@ const denoise5x5ShaderCode = /* glsl */`
     }
 
     // --- Step1: 外周チェック ---
+    var counts: array<u32, 9>;
     var outerFound = false;
     for (var i = 0; i < 16; i++) {
       let dx = outer[i].x;
       let dy = outer[i].y;
       let sx = clamp(x + dx, 0, w - 1);
-      let sy = clamp(y + dy, 0, i32(height) - 1);
+      let sy = clamp(y + dy, 0, h - 1);
       let sample = imageIn[u32(sy * w + sx)];
-      if ((sample & 0xFFu) == colId) {
-        outerFound = true;
-        break;
-      }
+      let cid = (sample & 0xFFu);
+      outerFound = outerFound || (cid == colId);
+      counts[cid] += 1u;
     }
 
     // --- Step2: 3x3 内側カウント ---
@@ -615,25 +747,14 @@ const denoise5x5ShaderCode = /* glsl */`
       let dx = inner[i].x;
       let dy = inner[i].y;
       let sx = clamp(x + dx, 0, w - 1);
-      let sy = clamp(y + dy, 0, i32(height) - 1);
+      let sy = clamp(y + dy, 0, h - 1);
       let sample = imageIn[u32(sy * w + sx)];
-      if ((sample & 0xFFu) == colId) {
-        innerCount++;
-      }
+      let cid = (sample & 0xFFu);
+      innerCount += select(0u, 1u, cid == colId);
+      counts[cid] += 1u;
     }
 
     // --- Step3: 5x5 多数決 ---
-    var counts: array<u32, 9>;
-    for (var dy = -2; dy <= 2; dy++) {
-      for (var dx = -2; dx <= 2; dx++) {
-        let sx = clamp(x + dx, 0, w - 1);
-        let sy = clamp(y + dy, 0, i32(height) - 1);
-        let sample = imageIn[u32(sy * w + sx)];
-        let cid = (sample & 0xFFu);
-        counts[cid] += 1u;
-      }
-    }
-
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
     let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;

@@ -61,7 +61,6 @@
       uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
       input: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
       drawInput: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST }),
-      // DEBUG: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
       pSharp: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
       pressure: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
       pressureOut: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
@@ -75,9 +74,7 @@
       output: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC }),
       readbackPressure: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
       readbackLoG: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
-      readbackpDen: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
       readback: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
-      readbackDEB: device.createBuffer({ size: pixelCount * 4, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ }),
     };
     const pixelArray = new Uint32Array(imageData.data.buffer);
     device.queue.writeBuffer(buffers.input, 0, pixelArray);
@@ -121,124 +118,130 @@
       f32View[i * 8 + base + 3] = l;
       f32View[i * 8 + base + 4] = w;
     }
+        
+    const enableSharpness = (typeof cfg.enableSharpness !== 'undefined') ? cfg.enableSharpness : true;
+    const enableDenoise = (typeof cfg.enableDenoise !== 'undefined') ? cfg.enableDenoise : 3;
+    const enableDebug   = (typeof cfg.enableDebug !== 'undefined')   ? cfg.enableDebug : false;
+
     device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
-  
-    const steps = [
-      {
-        name: 'TracePressure',
-        code: uniformsCode + tracePressShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'input', binding: 1, type: 'read-only-storage' },
-          { name: 'drawInput', binding: 2, type: 'read-only-storage' },
-          { name: 'pSharp', binding: 3, type: 'storage' },
-          { name: 'binary', binding: 4, type: 'storage' },
-        ]
-      },
-      { // 筆圧値：シャープネスフィルタ
-        name: 'Sharpness',
-        code: uniformsCode + sharpnessShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'pSharp', binding: 1, type: 'read-only-storage' },
-          { name: 'pressure', binding: 2, type: 'storage' },
-        ]
-      },
-      { // 筆圧値：Floatをグレーに変換
-        name: 'Pres_Pressure',
-        code: uniformsCode + outputFloatShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'pressure', binding: 1, type: 'read-only-storage' },
-          { name: 'pressureOut', binding: 2, type: 'storage' },
-        ]
-      },
-      {
-        name: 'LoG_Gaussian',
-        code: uniformsCode + gaussianShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'pressure', binding: 1, type: 'read-only-storage' },
-          { name: 'log', binding: 2, type: 'storage' },
-        ]
-      },
-      {
-        name: 'LoG_Laplacian',
-        code: uniformsCode + laplacianShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'log', binding: 1, type: 'read-only-storage' },
-          { name: 'binary', binding: 2, type: 'read-only-storage' },
-          { name: 'logBuffer', binding: 3, type: 'storage' },
-        ]
-      },
-      {
-        name: 'LoG_Gaussian2',
-        code: uniformsCode + gaussianShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'logBuffer', binding: 1, type: 'read-only-storage' },
-          { name: 'log', binding: 2, type: 'storage' },
-        ]
-      },
-      { // LoGフィルタ：Floatをグレーに変換
-        name: 'DebugOutputLoG',
-        code: uniformsCode + outputFloatShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'log', binding: 1, type: 'read-only-storage' },
-          { name: 'logOut', binding: 2, type: 'storage' },
-        ]
-      },
-      {
-        name: 'Gau_Gaussian',
-        code: uniformsCode + gaussianMultColShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'binary', binding: 1, type: 'read-only-storage' },
-          { name: 'gaussian', binding: 2, type: 'storage' },
-        ]
-      },
-      {
-        name: 'AffineBinary',
-        code: uniformsCode + affineBinaryShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'pressure', binding: 1, type: 'read-only-storage' },
-          { name: 'log', binding: 2, type: 'read-only-storage' },
-          { name: 'gaussian', binding: 3, type: 'read-only-storage' },
-          { name: 'preDenoise', binding: 4, type: 'storage' },
-        ]
-      },
-      {
-        name: 'Denoise5x5',
-        code: uniformsCode + denoise5x5ShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'preDenoise', binding: 1, type: 'read-only-storage' },
-          { name: 'denoiseBuffer', binding: 2, type: 'storage' },
-        ]
-      },
-      {
-        name: 'Denoise3x3',
-        code: uniformsCode + denoise3x3ShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
-          { name: 'binary', binding: 2, type: 'storage' },
-        ]
-      },
-      { // 最終結果：最終結果を色に変換
-        name: 'ColorIndexToColor',
-        code: uniformsCode + colorIndexToColorShaderCode,
-        bindings: [
-          { name: 'uniform', binding: 0, type: 'uniform' },
-          { name: 'binary', binding: 1, type: 'read-only-storage' },
-          { name: 'output', binding: 2, type: 'storage' },
-        ]
-      },
-    ];
-  
+
+    // Helper to push a step
+    function pushStep(arr, name, code, bindings) {
+      arr.push({ name, code, bindings });
+    }
+
+    const steps = [];
+
+    // TracePressure: pSharp or pressure depending on sharpness flag
+    pushStep(steps, 'TracePressure', uniformsCode + tracePressShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'input', binding: 1, type: 'read-only-storage' },
+      { name: 'drawInput', binding: 2, type: 'read-only-storage' },
+      { name: (enableSharpness ? 'pSharp' : 'pressure'), binding: 3, type: 'storage' },
+      { name: 'binary', binding: 4, type: 'storage' },
+    ]);
+
+    // Sharpness: only when enabled
+    if (enableSharpness) {
+      pushStep(steps, 'Sharpness', uniformsCode + sharpnessShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'pSharp', binding: 1, type: 'read-only-storage' },
+        { name: 'pressure', binding: 2, type: 'storage' },
+      ]);
+    }
+
+    // Pres_Pressure: only for debug output (float-to-gray debug path)
+    if (enableDebug) {
+      pushStep(steps, 'Pres_Pressure', uniformsCode + outputFloatShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'pressure', binding: 1, type: 'read-only-storage' },
+        { name: 'pressureOut', binding: 2, type: 'storage' },
+      ]);
+    }
+
+    // LoG processing (always present)
+    pushStep(steps, 'LoG_Gaussian', uniformsCode + gaussianShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'pressure', binding: 1, type: 'read-only-storage' },
+      { name: 'log', binding: 2, type: 'storage' },
+    ]);
+
+    pushStep(steps, 'LoG_Laplacian', uniformsCode + laplacianShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'log', binding: 1, type: 'read-only-storage' },
+      { name: 'binary', binding: 2, type: 'read-only-storage' },
+      { name: 'logBuffer', binding: 3, type: 'storage' },
+    ]);
+
+    pushStep(steps, 'LoG_Gaussian2', uniformsCode + gaussianShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'logBuffer', binding: 1, type: 'read-only-storage' },
+      { name: 'log', binding: 2, type: 'storage' },
+    ]);
+
+    // Debug LoG output: only when debug enabled
+    if (enableDebug) {
+      pushStep(steps, 'DebugOutputLoG', uniformsCode + outputFloatShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'log', binding: 1, type: 'read-only-storage' },
+        { name: 'logOut', binding: 2, type: 'storage' },
+      ]);
+    }
+
+    // Gaussian multicolor step
+    pushStep(steps, 'Gau_Gaussian', uniformsCode + gaussianMultColShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'binary', binding: 1, type: 'read-only-storage' },
+      { name: 'gaussian', binding: 2, type: 'storage' },
+    ]);
+
+    // AffineBinary: preDenoise target depends on denoise flag
+    let preDenoiseName = 'preDenoise';
+    if (enableDenoise === 1 || enableDenoise === 2) preDenoiseName = 'denoiseBuffer';
+    if (enableDenoise === 0) preDenoiseName = 'binary';
+
+    pushStep(steps, 'AffineBinary', uniformsCode + affineBinaryShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'pressure', binding: 1, type: 'read-only-storage' },
+      { name: 'log', binding: 2, type: 'read-only-storage' },
+      { name: 'gaussian', binding: 3, type: 'read-only-storage' },
+      { name: preDenoiseName, binding: 4, type: 'storage' },
+    ]);
+
+    // Denoise steps: 3x3 then 1x1 when enabled
+    if (enableDenoise === 3) {
+      // full denoise: AffineBinary -> preDenoise -> Denoise3x3 -> denoiseBuffer -> Denoise1x1 -> binary
+      pushStep(steps, 'Denoise3x3', uniformsCode + denoise3x3ShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'preDenoise', binding: 1, type: 'read-only-storage' },
+        { name: 'denoiseBuffer', binding: 2, type: 'storage' },
+      ]);
+      pushStep(steps, 'Denoise1x1', uniformsCode + denoise1x1ShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
+        { name: 'binary', binding: 2, type: 'storage' },
+      ]);
+    } else if(enableDenoise === 2) {
+      pushStep(steps, 'Denoise2x2', uniformsCode + denoise2x2ShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
+        { name: 'binary', binding: 2, type: 'storage' },
+      ]);
+    } else if (enableDenoise === 1) {
+      pushStep(steps, 'Denoise1x1', uniformsCode + denoise1x1ShaderCode, [
+        { name: 'uniform', binding: 0, type: 'uniform' },
+        { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
+        { name: 'binary', binding: 2, type: 'storage' },
+      ]);
+    }
+
+    // Final colorization
+    pushStep(steps, 'ColorIndexToColor', uniformsCode + colorIndexToColorShaderCode, [
+      { name: 'uniform', binding: 0, type: 'uniform' },
+      { name: 'binary', binding: 1, type: 'read-only-storage' },
+      { name: 'output', binding: 2, type: 'storage' },
+    ]);
+
     return { buffers, steps, width, height };
   }
 
