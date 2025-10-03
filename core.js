@@ -331,33 +331,66 @@
     await processAllImages();
     showStatus('ZIPファイルを生成中...', 'info');
 
+    /** 個別ダウンロード */
+    // for (let i = 0; i < processedImages.length; i++) {
+    //   // エンコード
+    //   const imageData = processedImages[i].processed;
+    //   let blob;
+    //   if (fileFormat === 'png') {
+    //     blob = await encodePNG(imageData);
+    //   } else if (fileFormat === 'tif') {
+    //     blob = await encodeTIFF(imageData);
+    //   } else if (fileFormat === 'tga') {
+    //     blob = await encodeTGA(imageData);
+    //   } else {
+    //     throw new Error('Unsupported format: ' + fileFormat);
+    //   }
+      
+
+    //   // ダウンロード
+    //   const num  = fileInfos[i].padded;
+    //   const name = `${fileName}_${num}.${fileFormat}`;
+    //   const url = URL.createObjectURL(blob);
+    //   const a = document.createElement('a');
+    //   a.href = url;
+    //   a.download = name;
+    //   document.body.appendChild(a);
+    //   a.click();
+    //   a.remove();
+    //   URL.revokeObjectURL(url);
+    //   await delay(200);
+    // }
+
+    /** zipダウンロード */
+    const zip = new JSZip();
+
     for (let i = 0; i < processedImages.length; i++) {
-      // エンコード
-      const imageData = processedImages[i].processed;
+      const imgData = processedImages[i].processed;
+      if (!imgData) continue;
+
       let blob;
       if (fileFormat === 'png') {
-        blob = await encodePNG(imageData);
+        blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
       } else if (fileFormat === 'tif') {
-        blob = await encodeTIFF(imageData);
+        blob = encodeTIFF(imgData);
       } else if (fileFormat === 'tga') {
-        blob = await encodeTGA(imageData);
+        blob = encodeTGA(imgData);
       } else {
         throw new Error('Unsupported format: ' + fileFormat);
       }
-
-      // ダウンロード
+        
       const num  = fileInfos[i].padded;
       const name = `${fileName}_${num}.${fileFormat}`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      await delay(200);
+
+      zip.file(name, blob);
     }
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${fileName}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 
     await prepareAndShowImage();
     showStatus('ZIPファイルの保存が完了しました。', 'success', 3000);
