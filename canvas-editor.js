@@ -108,26 +108,31 @@
       mouseX = e.clientX - containerRect.left;
       mouseY = e.clientY - containerRect.top;
 
-      if (window.Core.getCursorMode() !== 'camera' || !isDragging) return;
+      if (!isDragging) return;
       offsetX = e.clientX - startX;
       offsetY = e.clientY - startY;
       updateTransform();
     });
 
     editorContent.addEventListener("mouseup", () => {
-      if (window.Core.getCursorMode() !== 'camera') return;
       isDragging = false;
     });
 
     // 投げ縄開始
     editorContent.addEventListener('mousedown', e => {
-      if (window.Core.getCursorMode() !== 'highTh' && window.Core.getCursorMode() !== 'lowTh') return;
-
-      isLassoing  = true;
-      lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
-      
-      // overlay をクリアしてパスをリセット
-      octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      if(e.button === 1) {
+        isDragging = true;
+        startX = e.clientX - offsetX;
+        startY = e.clientY - offsetY;
+      } else {
+        if (window.Core.getCursorMode() !== 'highTh' && window.Core.getCursorMode() !== 'lowTh') return;
+  
+        isLassoing  = true;
+        lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
+        
+        // overlay をクリアしてパスをリセット
+        octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      }
     });
 
     // マウス移動でパスを追加＆プレビュー描画
@@ -154,6 +159,7 @@
 
     editorContent.addEventListener("wheel", (e) => {
       e.preventDefault();
+      if(isDragging) return;
       // Use discrete zoom steps defined in zoomLevels, snapping to the next/previous level.
       const containerRect = editorContent.getBoundingClientRect();
       const mouseX = e.clientX - containerRect.left;
