@@ -27,11 +27,10 @@
   
   // ディレクトリ選択によるアップロード
   const uploadByDirHandle = async function(){
-    // ユーザーにフォルダ選択ダイアログを表示
-    const dirHandle = await window.showDirectoryPicker();
-    window.Core.setDirHandle(dirHandle);
+    // フォルダ選択ダイアログを表示
+    const dirHandle = await window.Core.setDirHandle();
 
-    // 選択フォルダ内のファイルを収集（トップレベルのみ）
+    // 選択フォルダ内のファイルを収集
     const files = [];
     for await (const entry of dirHandle.values()) {
       if (entry.kind === 'file') {

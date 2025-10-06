@@ -268,6 +268,7 @@
       }
     }
 
+    if(!await checkPermission()) return;
 
     // 画像処理
     if(showMode !== 'processed') await setShowMode('processed');
@@ -330,12 +331,14 @@
         return false;
       }
     }
+
+    if(!await checkPermission()) return;
     
     // 画像処理
     await processAllImages();
     showStatus('<div class="loading"><div class="spinner"></div>画像ファイルを生成中...</div>');
 
-    /** 個別ダウンロード */
+    /** 全ての画像を保存 */
     for (let i = 0; i < processedImages.length; i++) {
       // エンコード
       const imageData = processedImages[i].processed;
@@ -364,10 +367,25 @@
     showStatus('保存が完了しました。', 'success', 3000);
   }
 
-  const setDirHandle = async function(dir) {
-    if(!dir) dirHandle = await window.showDirectoryPicker();
-    else dirHandle = dir;
+  const setDirHandle = async function() {
+    dirHandle = await window.showDirectoryPicker();
+    await checkPermission();
+
     window.FloatPanel.setSaveDirName(dirHandle.name);
+    return dirHandle;
+  }
+
+  const existDirHandle = function() {
+    return (!!dirHandle);
+  }
+
+  const checkPermission = async function() {
+    const permission = await dirHandle.queryPermission({ mode: 'readwrite' });
+    if(permission !== 'granted') { 
+      const request = await dirHandle.requestPermission({ mode: 'readwrite' });
+      if(request !== 'granted') return false;
+    }
+    return true;
   }
 
   window.Core = {
@@ -398,6 +416,7 @@
     saveImage,
     saveAllImages,
     setDirHandle,
+    existDirHandle,
   }
 
   window.ConfigEditor.init();
