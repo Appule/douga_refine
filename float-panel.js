@@ -393,7 +393,7 @@
   // フロートウィンドウの初期設定
   const init = function() {
     windows.push(new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'));
-    windows[0].el.style.height = '400px';
+    windows[0].el.style.height = '440px';
 
     // ファイル名入力欄
     fileNameInput = windows[0].addTextInput('保存ファイル名', () => {
@@ -418,6 +418,7 @@
     windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.setCursorMode(modeList[e]); }, 'rgba(89, 98, 219, 1)');
     allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', () => window.Core.processAllImages(), false, 'rgb(0, 153, 221)');
     fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 'tga'], () => {}, 'rgb(0, 185, 40)');
+    windows[0].addButton('<i class="fa-solid fa-folder-open"></i> 保存先選択', () => window.Core.setDirHandle(), false, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fas fa-file-download"></i> すべて保存', () => window.Core.saveAllImages(), false, 'rgb(0, 153, 221)');
 
     // --- ウィンドウ表示切替 ---

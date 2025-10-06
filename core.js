@@ -12,6 +12,7 @@
   // コンフィグ
   let globalConfig = {}; // グローバルコンフィグ
   let frameConfigs = []; // フレームコンフィグ
+  let dirHandle;
 
   //// HTML要素
   // ページ設定
@@ -259,10 +260,14 @@
     const base = fileName;
     const num  = fileInfos[idx].padded;
     const name = `${base}_${num}.${fileFormat}`;
-    const ok = confirm(`「${name}」という名前で保存しますか？`);
-    if (!ok) {
-      return false; // キャンセルされたら処理を中止
+    if(!dirHandle) dirHandle = await window.showDirectoryPicker();
+    else {
+      const ok = confirm(`「${dirHandle.name}」フォルダに「${name}」で保存しますか？`);
+      if (!ok) {
+        return false;
+      }
     }
+
 
     // 画像処理
     if(showMode !== 'processed') await setShowMode('processed');
@@ -282,14 +287,10 @@
     }
 
     // ダウンロード
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
 
     // 画面更新処理
     if(refresh) await prepareAndShowImage();
@@ -322,78 +323,49 @@
       alert('保存する画像がありません。');
       return;
     }
-    const ok = confirm(`「${fileName}_XXXX.${fileFormat}」という名前で保存しますか？`);
-    if (!ok) {
-      return;
+    if(!dirHandle) dirHandle = await window.showDirectoryPicker();
+    else {
+      const ok = confirm(`「${dirHandle.name}」フォルダに保存します。よろしいですか？`);
+      if (!ok) {
+        return false;
+      }
     }
     
     // 画像処理
     await processAllImages();
-    showStatus('ZIPファイルを生成中...', 'info');
+    showStatus('<div class="loading"><div class="spinner"></div>画像ファイルを生成中...</div>');
 
     /** 個別ダウンロード */
-    // for (let i = 0; i < processedImages.length; i++) {
-    //   // エンコード
-    //   const imageData = processedImages[i].processed;
-    //   let blob;
-    //   if (fileFormat === 'png') {
-    //     blob = await encodePNG(imageData);
-    //   } else if (fileFormat === 'tif') {
-    //     blob = await encodeTIFF(imageData);
-    //   } else if (fileFormat === 'tga') {
-    //     blob = await encodeTGA(imageData);
-    //   } else {
-    //     throw new Error('Unsupported format: ' + fileFormat);
-    //   }
-      
-
-    //   // ダウンロード
-    //   const num  = fileInfos[i].padded;
-    //   const name = `${fileName}_${num}.${fileFormat}`;
-    //   const url = URL.createObjectURL(blob);
-    //   const a = document.createElement('a');
-    //   a.href = url;
-    //   a.download = name;
-    //   document.body.appendChild(a);
-    //   a.click();
-    //   a.remove();
-    //   URL.revokeObjectURL(url);
-    //   await delay(200);
-    // }
-
-    /** zipダウンロード */
-    const zip = new JSZip();
-
     for (let i = 0; i < processedImages.length; i++) {
-      const imgData = processedImages[i].processed;
-      if (!imgData) continue;
-
+      // エンコード
+      const imageData = processedImages[i].processed;
       let blob;
       if (fileFormat === 'png') {
-        blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        blob = await encodePNG(imageData);
       } else if (fileFormat === 'tif') {
-        blob = encodeTIFF(imgData);
+        blob = await encodeTIFF(imageData);
       } else if (fileFormat === 'tga') {
-        blob = encodeTGA(imgData);
+        blob = await encodeTGA(imageData);
       } else {
         throw new Error('Unsupported format: ' + fileFormat);
       }
-        
+
+      // ダウンロード
       const num  = fileInfos[i].padded;
       const name = `${fileName}_${num}.${fileFormat}`;
-
-      zip.file(name, blob);
+      const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      showStatus(`<div class="loading"><div class="spinner"></div>画像ファイルを生成中...</div>${(i / processedImages.length * 100).toFixed(0)}%`);
     }
 
-    const blob = await zip.generateAsync({ type: "blob" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${fileName}.zip`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-
     await prepareAndShowImage();
-    showStatus('ZIPファイルの保存が完了しました。', 'success', 3000);
+    showStatus('保存が完了しました。', 'success', 3000);
+  }
+
+  const setDirHandle = async function() {
+    dirHandle = await window.showDirectoryPicker();
   }
 
   window.Core = {
@@ -423,6 +395,7 @@
     processAllImages,
     saveImage,
     saveAllImages,
+    setDirHandle,
   }
 
   window.ConfigEditor.init();
