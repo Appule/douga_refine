@@ -24,6 +24,28 @@
   let mouseX = 0, mouseY = 0;
   // current pixel color under cursor (RGBA 0-255)
   let currentPixelColor = { r: 0, g: 0, b: 0, a: 0 };
+  
+  // ディレクトリ選択によるアップロード
+  const uploadByDirHandle = async function(){
+    // ユーザーにフォルダ選択ダイアログを表示
+    const dirHandle = await window.showDirectoryPicker();
+    window.Core.setDirHandle(dirHandle);
+
+    // 選択フォルダ内のファイルを収集（トップレベルのみ）
+    const files = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') {
+        try {
+          const file = await entry.getFile();
+          files.push(file);
+        } catch (err) {
+          console.warn('Failed to get file from handle:', entry.name, err);
+        }
+      }
+    }
+
+    imageUploaded(files);
+  }
 
   const init = function(){
     // dragoverイベントでdrop許可
@@ -39,43 +61,9 @@
     // 画像アップロードイベント
     dropZone.addEventListener("drop", async (e) => {
       e.preventDefault();
-      showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
       dropZone.classList.remove("dragover");
-  
       // ex) A_0001~0088 => [{ file, num:0001~0088, num:1~88, basename:A }, ...]
-      const fileInfos = Array.from(e.dataTransfer.files)
-        .filter(f => {
-          return f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif");
-        })
-        .map(f => {
-          const baseNameOnly = f.name.replace(/\.[^/.]+$/, ""); // 拡張子を除去
-          const lastUnderscore = baseNameOnly.lastIndexOf("_");
-          const basename = lastUnderscore !== -1
-            ? baseNameOnly.substring(0, lastUnderscore)
-            : baseNameOnly;
-  
-          const m = f.name.match(/(\d{4})/);
-          const padded = m ? m[1] : "";
-          const num = m ? parseInt(m[1], 10) : Infinity;
-  
-          return { file: f, padded, num, basename };
-        })
-        .sort((a, b) => a.num - b.num);
-      
-      // フロートパネルのファイル名欄を更新
-      window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
-  
-      // 画像データキャッシュ配列を生成
-      window.Core.initImageDatas(fileInfos);
-  
-      // フレームメニューを初期化
-      window.FrameManager.init(fileInfos);
-  
-      // キャンバスとキャッシュ画像を初期化
-      await initCanvas(fileInfos);
-  
-      // 読み込み完了後に描画処理
-      window.Core.prepareAndShowImage();
+      imageUploaded(Array.from(e.dataTransfer.files));
     });
 
     canvas.style.transformOrigin = "0 0"; // 左上基準
@@ -209,8 +197,50 @@
       }
     });
   }
-  
+
   // 画像アップロード時
+  const imageUploaded = async function(files){
+    try {
+      showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
+
+      // fileInfos を dirHandle から初期化
+      const fileInfos = files
+        .filter(f => {
+          return f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif");
+        })
+        .map(f => {
+          const baseNameOnly = f.name.replace(/\.[^/.]+$/, "");
+          const lastUnderscore = baseNameOnly.lastIndexOf("_");
+          const basename = lastUnderscore !== -1
+            ? baseNameOnly.substring(0, lastUnderscore)
+            : baseNameOnly;
+
+          const m = f.name.match(/(\d{4})/);
+          const padded = m ? m[1] : "";
+          const num = m ? parseInt(m[1], 10) : Infinity;
+
+          return { file: f, padded, num, basename };
+        })
+        .sort((a, b) => a.num - b.num);
+
+      if (fileInfos.length === 0) {
+        showStatus('選択されたフォルダに画像が見つかりませんでした。', 'error', 3000);
+        return;
+      }
+
+      // drop と同じ処理を実行
+      window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
+      window.Core.initImageDatas(fileInfos);
+      window.FrameManager.init(fileInfos);
+      await initCanvas(fileInfos);
+      window.Core.prepareAndShowImage();
+    } catch (err) {
+      // ユーザーがキャンセルした場合や API が使えない場合など
+      console.error('Directory load cancelled or failed:', err);
+    }
+  }
+  
+  // uploadedImageの生成
   const initCanvas = async function(fileInfos){
     // 各ファイルの処理
     for (let index = 0; index < fileInfos.length; index++) {
@@ -258,6 +288,8 @@
         if (index === fileInfos.length - 1) {
           showStatus(`${ext.toUpperCase()}画像が読み込まれました。`, 'success', 3000);
         }
+
+        showStatus(`<div class="loading"><div class="spinner"></div>画像を読み込み中...${(index / fileInfos.length * 100).toFixed(0)}%</div>`, 'info');
   
       } catch (err) {
         console.error('Error loading image file:', err);
@@ -272,6 +304,7 @@
     if (p) p.remove();
     editorContent.style.alignItems = 'initial';
     editorContent.style.justifyContent = 'initial';
+    showStatus('アップロードが完了しました。', 'success', 3000);
   }
 
   function findClosestZoomIndex(z) {
@@ -464,6 +497,7 @@
     drawImg,
     hideDrawCanvas,
     showDrawCanvas,
+    uploadByDirHandle,
   }
 
 })();

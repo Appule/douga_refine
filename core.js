@@ -262,7 +262,7 @@
     const name = `${base}_${num}.${fileFormat}`;
     if(!dirHandle) dirHandle = await window.showDirectoryPicker();
     else {
-      const ok = confirm(`「${dirHandle.name}」フォルダに「${name}」で保存しますか？`);
+      const ok = confirm(`「${dirHandle.name}」フォルダに「${name}」(同名は上書き)で保存しますか？`);
       if (!ok) {
         return false;
       }
@@ -325,7 +325,7 @@
     }
     if(!dirHandle) dirHandle = await window.showDirectoryPicker();
     else {
-      const ok = confirm(`「${dirHandle.name}」フォルダに保存します。よろしいですか？`);
+      const ok = confirm(`「${dirHandle.name}」フォルダに保存します。同じ名前のファイルは上書きされますが、よろしいですか？`);
       if (!ok) {
         return false;
       }
@@ -364,8 +364,9 @@
     showStatus('保存が完了しました。', 'success', 3000);
   }
 
-  const setDirHandle = async function() {
-    dirHandle = await window.showDirectoryPicker();
+  const setDirHandle = async function(dir) {
+    if(!dir) dirHandle = await window.showDirectoryPicker();
+    else dirHandle = dir;
     window.FloatPanel.setSaveDirName(dirHandle.name);
   }
 

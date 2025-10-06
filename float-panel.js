@@ -394,7 +394,9 @@
   // フロートウィンドウの初期設定
   const init = function() {
     windows.push(new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'));
-    windows[0].el.style.height = '440px';
+    windows[0].el.style.height = '470px';
+
+    windows[0].addButton('<i class="fa-solid fa-folder-open"></i> フォルダからアップ', () => window.CanvasEditor.uploadByDirHandle(), true, 'rgb(0, 185, 40)');
 
     // ファイル名入力欄
     fileNameInput = windows[0].addTextInput('保存ファイル名', () => {
