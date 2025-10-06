@@ -389,6 +389,7 @@
   let fileNameInput = null;
   let allProcBtn = null;
   let fileExtList = null;
+  let saveDirBtn = null;
 
   // フロートウィンドウの初期設定
   const init = function() {
@@ -418,7 +419,7 @@
     windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.setCursorMode(modeList[e]); }, 'rgba(89, 98, 219, 1)');
     allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', () => window.Core.processAllImages(), false, 'rgb(0, 153, 221)');
     fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 'tga'], () => {}, 'rgb(0, 185, 40)');
-    windows[0].addButton('<i class="fa-solid fa-folder-open"></i> 保存先選択', () => window.Core.setDirHandle(), false, 'rgb(0, 185, 40)');
+    saveDirBtn = windows[0].addButton('<i class="fa-solid fa-folder-open"></i> 保存先を選択', () => window.Core.setDirHandle(), false, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fas fa-file-download"></i> すべて保存', () => window.Core.saveAllImages(), false, 'rgb(0, 153, 221)');
 
     // --- ウィンドウ表示切替 ---
@@ -441,6 +442,8 @@
     const getFileExt = function(){ return fileExtList.value; }
 
     const getCfgStats = function(){ return {enableSharpness:parseInt(sharpnessBtn.dataset.toggled), denoiseLevel:parseInt(denoiseList.value)}; }
+
+    const setSaveDirName = function(name){ saveDirBtn.innerHTML = `<i class="fa-solid fa-folder-open"></i> 保存先 ⇒ ${name}`; }
   
     //// 共有オブジェクト
     window.FloatPanel = {
@@ -449,6 +452,7 @@
       getFileName,
       getFileExt,
       getCfgStats,
+      setSaveDirName,
     }
     
     // Keyboard shortcuts: showMode toggle

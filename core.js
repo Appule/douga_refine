@@ -366,6 +366,7 @@
 
   const setDirHandle = async function() {
     dirHandle = await window.showDirectoryPicker();
+    window.FloatPanel.setSaveDirName(dirHandle.name);
   }
 
   window.Core = {
