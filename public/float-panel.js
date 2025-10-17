@@ -420,7 +420,7 @@
     const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
     windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.setCursorMode(modeList[e]); }, 'rgba(89, 98, 219, 1)');
     allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', () => window.Core.processAllImages(), false, 'rgb(0, 153, 221)');
-    fileExtList = windows[0].addDropdown('保存形式', ['', 'png', 'tif', 'tga'], () => {}, 'rgb(0, 185, 40)');
+    fileExtList = windows[0].addDropdown('保存形式', ['tga', 'png', 'tif'], () => {}, 'rgb(0, 185, 40)');
     saveDirBtn = windows[0].addButton('<i class="fa-solid fa-folder-open"></i> 保存先を選択', () => window.Core.setDirHandle(), false, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fas fa-file-download"></i> すべて保存', () => window.Core.saveAllImages(), false, 'rgb(0, 153, 221)');
 

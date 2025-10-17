@@ -167,13 +167,16 @@
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
   
       const key = e.key;
-      const isShift = e.shiftKey;
   
       // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
       if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        if (isShift) changeZoomStep(-1, mouseX, mouseY);
-        else changeZoomStep(1, mouseX, mouseY);
+        changeZoomStep(1, mouseX, mouseY);
+        return;
+      }
+      if (key.toLowerCase() === 'x' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        changeZoomStep(-1, mouseX, mouseY);
         return;
       }
   
