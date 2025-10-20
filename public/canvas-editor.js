@@ -90,7 +90,7 @@
       }
     });
 
-    editorContent.addEventListener("mousemove", (e) => {
+    document.addEventListener("mousemove", (e) => {
       const containerRect = editorContent.getBoundingClientRect();
       mouseX = e.clientX - containerRect.left;
       mouseY = e.clientY - containerRect.top;
@@ -101,7 +101,7 @@
       updateTransform();
     });
 
-    editorContent.addEventListener("mouseup", () => {
+    document.addEventListener("mouseup", () => {
       isDragging = false;
     });
 
