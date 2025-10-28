@@ -1,4 +1,4 @@
-(function() {
+(function () {
   // フレームメニュー (右エリア)
   const menuContent = document.querySelector(".menu-content");
   const previewCanvas = document.getElementById('previewCanvas');
@@ -9,13 +9,13 @@
   let cfgIsPressed = false;
   let frameCfgIndex = 0; // 現在のコンフィグフレーム番号
   let cfgToggleStates = []; // コンフィグボタンのトグル状態
-  
-  const init = function(fileInfos){
-    
+
+  const init = function (fileInfos) {
+
     menuContent.innerHTML = '';
     frameBtns = new Array(fileInfos.length);
     cfgToggleStates = new Array(fileInfos.length).fill(false);
-    
+
     // 各ボタンの初期設定
     fileInfos.forEach((info, index) => {
       const row = document.createElement("div");
@@ -29,7 +29,7 @@
         buttonIsPressed |= event.button == 0 ? 1 : 0;
         fbtn.classList.add('active');
         cfgToggleStates.fill(false);
-        if(cbtn.innerHTML) cfgToggleStates[index] = true;
+        if (cbtn.innerHTML) cfgToggleStates[index] = true;
         frameCfgIndex = index;
         updateCfgBtns();
         window.Core.setFrameIndex(index);
@@ -38,10 +38,10 @@
         accentFrmBtn(index);
       });
       fbtn.addEventListener("mouseenter", async () => {
-        if(buttonIsPressed) {
+        if (buttonIsPressed) {
           fbtn.classList.add('active');
           cfgToggleStates.fill(false);
-          if(cbtn.innerHTML) cfgToggleStates[index] = true;
+          if (cbtn.innerHTML) cfgToggleStates[index] = true;
           frameCfgIndex = index;
           updateCfgBtns();
           window.Core.setFrameIndex(index);
@@ -55,8 +55,8 @@
         const bitmap = await createImageBitmap(imgData);
         const h = 150;
         const w = Math.round(bitmap.width * (h / bitmap.height));
-        if(previewCanvas.width != w || previewCanvas.height != h){
-          previewCanvas.width  = w;
+        if (previewCanvas.width != w || previewCanvas.height != h) {
+          previewCanvas.width = w;
           previewCanvas.height = h;
         }
         pctx.clearRect(0, 0, w, h);
@@ -74,16 +74,16 @@
       cbtn.classList.add("config-btn");
       cbtn.innerHTML = '';
       cbtn.addEventListener("mousedown", (event) => {
-        if(event.button == 0) {
+        if (event.button == 0) {
           cfgIsPressed = true;
           cbtn.classList.add('active');
-          if(event.shiftKey) {
+          if (event.shiftKey) {
             cfgToggleStates.fill(false);
-            for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
+            for (let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++) {
               cfgToggleStates[i] = true;
             }
           }
-          else if(event.ctrlKey) {
+          else if (event.ctrlKey) {
             cfgToggleStates[index] = !cfgToggleStates[index];
             frameCfgIndex = index;
           }
@@ -93,16 +93,16 @@
             frameCfgIndex = index;
           }
         }
-        else if(event.button == 2) {
+        else if (event.button == 2) {
           cfgIsPressed = false;
           cfgToggleStates.fill(false);
         }
         updateCfgBtns();
       });
       cbtn.addEventListener("mouseenter", (event) => {
-        if(cfgIsPressed) {
-          if(!event.ctrlKey) cfgToggleStates.fill(false);
-          for(let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++){
+        if (cfgIsPressed) {
+          if (!event.ctrlKey) cfgToggleStates.fill(false);
+          for (let i = Math.min(index, frameCfgIndex); i <= Math.max(index, frameCfgIndex); i++) {
             cfgToggleStates[i] = true;
           }
           updateCfgBtns();
@@ -121,19 +121,19 @@
       sbtn.classList.add("save-btn");
       sbtn.innerHTML = '<i class="fas fa-file-download"></i>';
       sbtn.addEventListener("click", async () => {
-        if(await window.Core.saveImage(index, true)) sbtn.classList.replace("save-btn", "saved-btn");
+        if (await window.Core.saveImage(index, true)) sbtn.classList.replace("save-btn", "saved-btn");
       });
       row.appendChild(sbtn);
 
       // ボタン列
-      frameBtns[index] = {fbtn, cbtn};
+      frameBtns[index] = { fbtn, cbtn };
       menuContent.appendChild(row);
     });
     accentFrmBtn(window.Core.getFrameIndex());
   }
 
   // フレームボタンをハイライト
-  function accentFrmBtn(index){
+  function accentFrmBtn(index) {
     frameBtns.forEach((b, i) => {
       if (i === index) {
         b.fbtn.classList.add('accent');
@@ -143,10 +143,10 @@
       }
     });
   }
-  
+
   // コンフィグボタンの更新
   const colorEditorTitle = document.getElementById("color-editor-title");
-  function updateCfgBtns(){
+  function updateCfgBtns() {
     let noActive = true;
     frameBtns.forEach((b, i) => {
       if (cfgToggleStates[i]) {
@@ -176,10 +176,10 @@
     const ch = previewCanvas.height;
     // マウスの左側に表示、上辺をカーソルの中央に合わせる
     previewCanvas.style.left = (e.pageX - cw - 10) + 'px';
-    previewCanvas.style.top  = (e.pageY - ch/2) + 'px';
+    previewCanvas.style.top = (e.pageY - ch / 2) + 'px';
   });
 
-  
+
   // マウスリリースイベント
   window.addEventListener('mouseup', () => {
     buttonIsPressed = false;
@@ -236,7 +236,7 @@
     }
   });
 
-  const updateFrameButtons = function(){
+  const updateFrameButtons = function () {
     let allProcessed = true;
     for (let j = 0; j < frameBtns.length; j++) {
       const btns = frameBtns[j];
@@ -245,39 +245,34 @@
       if (!done) {
         allProcessed = false;
         btns.fbtn.style.backgroundColor = 'rgba(233, 84, 109, 1)';
-      } else if(btns.cbtn.innerHTML) {
+      } else if (btns.cbtn.innerHTML) {
         btns.fbtn.style.backgroundColor = 'rgba(230, 129, 71, 1)';
       } else {
         btns.fbtn.style.backgroundColor = 'rgba(84, 106, 233, 1)';
       }
     }
-    if (allProcessed) {
-      window.FloatPanel.blinkAllProcBtn(false);
-    } else {
-      window.FloatPanel.blinkAllProcBtn(false);
-    }
   }
-  
+
   menuContent.addEventListener("contextmenu", (event) => {
     event.preventDefault();
   });
   menuContent.addEventListener("mousedown", (event) => {
-    if(event.button == 2){
+    if (event.button == 2) {
       cfgToggleStates.fill(false);
       updateCfgBtns();
     }
   });
 
-  const getCfgToggleStates = function(){ return cfgToggleStates; }
+  const getCfgToggleStates = function () { return cfgToggleStates; }
 
-  const drawGear = async function(i){
+  const drawGear = async function (i) {
     frameBtns[i].cbtn.innerHTML = '<i class="fa-solid fa-gear"></i>';
     frameBtns[i].cbtn.style.color = await hashToColor(window.Core.getFrameConfig(i).hash, 80, 65);
   }
 
-  const clearGear = function(){
-    for(let i = 0; i < frameBtns.length; ++i){
-      if(cfgToggleStates[i]) frameBtns[i].cbtn.innerHTML = '';
+  const clearGear = function () {
+    for (let i = 0; i < frameBtns.length; ++i) {
+      if (cfgToggleStates[i]) frameBtns[i].cbtn.innerHTML = '';
     }
     cfgToggleStates.fill(false);
     updateCfgBtns();

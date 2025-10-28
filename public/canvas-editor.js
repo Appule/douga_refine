@@ -1,4 +1,4 @@
-(function() {
+(function () {
   // エディター画面 (中央エリア)
   const editorContent = document.querySelector(".editor-content");
   const dropZone = document.getElementById("drop-zone");
@@ -17,19 +17,16 @@
   let offsetX = 0, offsetY = 0;
   let isDragging = false;
   let startX, startY;
-  let isLassoing   = false;
-  let lassoPoints  = [];
+  let isLassoing = false;
+  let lassoPoints = [];
   // Fill alpha (0.1 .. 1.0) adjustable by pressing keys 1..9 and 0 (0 -> 1.0)
   let fillAlpha = 0.1;
   let mouseX = 0, mouseY = 0;
   // current pixel color under cursor (RGBA 0-255)
   let currentPixelColor = { r: 0, g: 0, b: 0, a: 0 };
-  
-  // ディレクトリ選択によるアップロード
-  const uploadByDirHandle = async function(){
-    // フォルダ選択ダイアログを表示
-    const dirHandle = await window.Core.setDirHandle();
 
+  // ディレクトリ選択によるアップロード
+  const uploadByDirHandle = async function (dirHandle) {
     // 選択フォルダ内のファイルを収集
     const files = [];
     for await (const entry of dirHandle.values()) {
@@ -46,7 +43,7 @@
     imageUploaded(files);
   }
 
-  const init = function(){
+  const init = function () {
     // dragoverイベントでdrop許可
     dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
@@ -76,7 +73,7 @@
     editorContent.addEventListener("mousedown", (e) => {
       if (window.Core.getCursorMode() !== 'camera') return;
       if (e.button === 0 || e.button === 1) {
-        if(e.button === 0) applyColorToActiveToggle(e);
+        if (e.button === 0) applyColorToActiveToggle(e);
         isDragging = true;
         startX = e.clientX - offsetX;
         startY = e.clientY - offsetY;
@@ -107,16 +104,16 @@
 
     // 投げ縄開始
     editorContent.addEventListener('mousedown', e => {
-      if(e.button === 1) {
+      if (e.button === 1) {
         isDragging = true;
         startX = e.clientX - offsetX;
         startY = e.clientY - offsetY;
       } else {
         if (window.Core.getCursorMode() !== 'highTh' && window.Core.getCursorMode() !== 'lowTh') return;
-  
-        isLassoing  = true;
-        lassoPoints = [ screenToCanvas(e.clientX, e.clientY) ];
-        
+
+        isLassoing = true;
+        lassoPoints = [screenToCanvas(e.clientX, e.clientY)];
+
         // overlay をクリアしてパスをリセット
         octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
       }
@@ -126,7 +123,7 @@
     editorContent.addEventListener('mousemove', e => {
       if (!isLassoing) return;
 
-      lassoPoints.push( screenToCanvas(e.clientX, e.clientY) );
+      lassoPoints.push(screenToCanvas(e.clientX, e.clientY));
       drawLassoOverlay();
     });
 
@@ -136,9 +133,9 @@
       isLassoing = false;
 
       let fillMode;
-      if(e.button === 0)
+      if (e.button === 0)
         fillMode = 'fill';
-      else if(e.button === 2)
+      else if (e.button === 2)
         fillMode = 'erase';
       fillLassoRegion(fillMode);
       octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
@@ -146,7 +143,7 @@
 
     editorContent.addEventListener("wheel", (e) => {
       e.preventDefault();
-      if(isDragging) return;
+      if (isDragging) return;
       // Use discrete zoom steps defined in zoomLevels, snapping to the next/previous level.
       const containerRect = editorContent.getBoundingClientRect();
       const mouseX = e.clientX - containerRect.left;
@@ -158,16 +155,16 @@
         changeZoomStep(-1, mouseX, mouseY);
       }
     }, { passive: false });
-    
-    
+
+
     // Keyboard shortcuts: zoom and quick-fill alpha
     document.addEventListener('keydown', (e) => {
       // Ignore when typing in inputs/textareas
       const activeTag = document.activeElement?.tagName;
       if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
-  
+
       const key = e.key;
-  
+
       // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
       if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -179,7 +176,7 @@
         changeZoomStep(-1, mouseX, mouseY);
         return;
       }
-  
+
       // Quick alpha set for fill: keys 1..9 => 0.1..0.9, 0 => 1.0
       // Only respond when not using modifier keys (so shortcuts like Ctrl+1 are preserved)
       if (!e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -201,7 +198,7 @@
   }
 
   // 画像アップロード時
-  const imageUploaded = async function(files){
+  const imageUploaded = async function (files) {
     try {
       showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
 
@@ -241,9 +238,9 @@
       console.error('Directory load cancelled or failed:', err);
     }
   }
-  
+
   // uploadedImageの生成
-  const initCanvas = async function(fileInfos){
+  const initCanvas = async function (fileInfos) {
     // 各ファイルの処理
     for (let index = 0; index < fileInfos.length; index++) {
       const info = fileInfos[index];
@@ -258,10 +255,10 @@
         } else {
           imgData = await window.ImageLoader.loadIMG(info.file);
         }
-  
+
         // イメージデータを保存
         window.Core.setUploadedImage(imgData, index);
-        
+
         if (index === 0) {
           // キャンバスサイズを最初の画像サイズに設定
           canvas.width = imgData.width;
@@ -278,27 +275,27 @@
           overlayCanvas.height = canvas.height;
           overlayCanvas.style.width = canvas.width + 'px';
           overlayCanvas.style.height = canvas.height + 'px';
-          
+
           resetCanvasOffset();
-          
+
           dctx.save();
           dctx.fillStyle = '#FFFFFF';
           dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
           dctx.restore();
         }
-  
+
         if (index === fileInfos.length - 1) {
           showStatus(`${ext.toUpperCase()}画像が読み込まれました。`, 'success', 3000);
         }
 
         showStatus(`<div class="loading"><div class="spinner"></div>画像を読み込み中...${(index / fileInfos.length * 100).toFixed(0)}%</div>`, 'info');
-  
+
       } catch (err) {
         console.error('Error loading image file:', err);
         showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
       }
     }
-    
+
     // 最初の文言を削除
     const h1 = editorContent.querySelector('h1');
     const p = editorContent.querySelector('p');
@@ -343,7 +340,7 @@
     setZoom(newZoom, centerX, centerY);
   }
 
-  function resetCanvasOffset(){
+  function resetCanvasOffset() {
     offsetX = 0;
     offsetY = 0;
     zoom = 1;
@@ -357,10 +354,10 @@
     if (lassoPoints.length < 2) return;
 
     octx.save();
-    octx.lineWidth   = 2 / zoom;              // ズーム補正
+    octx.lineWidth = 2 / zoom;              // ズーム補正
     octx.strokeStyle = 'rgba(0,0,0,0.8)';
     octx.beginPath();
-    
+
     // Path をたどる
     octx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
     for (let i = 1; i < lassoPoints.length; i++) {
@@ -373,7 +370,7 @@
 
   function fillLassoRegion(mode = 'fill') {
     if (lassoPoints.length < 3) return;
-  
+
     // Path2D を使うと便利
     const path = new Path2D();
     path.moveTo(lassoPoints[0].x, lassoPoints[0].y);
@@ -381,7 +378,7 @@
       path.lineTo(lassoPoints[i].x, lassoPoints[i].y);
     }
     path.closePath();
-  
+
     let fillColor;
     if (mode == 'fill') {
       // Use fillAlpha (adjustable via number keys) and proper rgba() string
@@ -393,7 +390,7 @@
     } else {
       fillColor = 'rgba(255,255,255,1.0)';
     }
-  
+
     // drawCanvas に塗りつぶし
     dctx.save();
     dctx.fillStyle = fillColor;
@@ -407,7 +404,7 @@
     canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
     drawCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
     overlayCanvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
-    if(zoom >= 1.0) {
+    if (zoom >= 1.0) {
       canvas.style.imageRendering = 'pixelated';
       drawCanvas.style.imageRendering = 'pixelated';
       overlayCanvas.style.imageRendering = 'pixelated';
@@ -476,11 +473,11 @@
     });
   }
 
-  const showImg = function(img){
-    if(img) ctx.putImageData(img, 0, 0);
+  const showImg = function (img) {
+    if (img) ctx.putImageData(img, 0, 0);
   }
-  const drawImg = function(data){
-    if(data?.img) dctx.putImageData(data.img, 0, 0);
+  const drawImg = function (data) {
+    if (data?.img) dctx.putImageData(data.img, 0, 0);
     else {
       dctx.save();
       dctx.fillStyle = '#FFFFFF';
@@ -489,8 +486,8 @@
     }
   }
 
-  const hideDrawCanvas = function(){ drawCanvas.hidden = true; }
-  const showDrawCanvas = function(){ drawCanvas.hidden = false; }
+  const hideDrawCanvas = function () { drawCanvas.hidden = true; }
+  const showDrawCanvas = function () { drawCanvas.hidden = false; }
 
   //// 共有オブジェクト
   window.CanvasEditor = {

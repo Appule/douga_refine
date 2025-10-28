@@ -1,4 +1,4 @@
-(function() {
+(function () {
   // --- ParamsWindow Class ---
   class ParamsWindow {
     /**
@@ -8,7 +8,7 @@
     constructor(id, backgroundColor = 'rgba(255, 255, 255, 0.52)') {
       this.windowIsClicked = false;
       this.topZIndex = 100;
-      
+
       this.el = document.getElementById(id);
 
       this.container = document.createElement('div');
@@ -83,7 +83,20 @@
     toggle(visible) {
       this.el.style.display = visible ? 'block' : 'none';
     }
-    
+
+    // Add Label
+    addLabel(label) {
+      const labelEl = document.createElement('label');
+      labelEl.textContent = `${label}`;
+      labelEl.style.display = 'block';
+      labelEl.style.marginTop = '2px';
+      labelEl.style.width = '100%';
+      labelEl.style.border = "none";
+      labelEl.style.padding = "2px";
+      labelEl.style.fontSize = "14px";
+      this.container.appendChild(labelEl);
+    }
+
     // Add Slider
     addSlider(label, min, max, value, step, onChange, sliderColor = '#009ddb') {
       const wrapper = document.createElement('div');
@@ -129,14 +142,14 @@
       btn.style.fontSize = "14px";
       btn.style.color = 'white';
 
-      if(!draggable) {
+      if (!draggable) {
         btn.addEventListener('click', () => {
           if (typeof onClick === 'function') onClick();
         });
       }
       btn.addEventListener('mousedown', (event) => {
         this.windowIsClicked |= event.button == 0 ? 1 : 0;
-        if(typeof onClick === 'function' && draggable) onClick();
+        if (typeof onClick === 'function' && draggable) onClick();
         btn.classList.add('active');
       });
       btn.addEventListener('mouseup', (event) => {
@@ -144,7 +157,7 @@
         btn.classList.remove('active');
       });
       btn.addEventListener("mouseenter", () => {
-        if(typeof onClick === 'function' && draggable && this.windowIsClicked) {
+        if (typeof onClick === 'function' && draggable && this.windowIsClicked) {
           btn.classList.add('active');
           onClick();
         }
@@ -157,7 +170,22 @@
       return btn;
     }
 
-  
+    // Add Wrapper
+    addWrapper(btns, widths) {
+      const wrapper = document.createElement('div');
+      wrapper.style.display = 'flex';
+
+      btns.forEach((b, i) => {
+        b.style.width = widths[i];
+        if (i != 0) b.style.marginLeft = '1px';
+        if (i != btns.length - 1) b.style.marginRight = '1px';
+        wrapper.appendChild(b);
+      });
+
+      this.container.appendChild(wrapper);
+      return wrapper;
+    }
+
     // Add Toggle Button
     addToggle(label, initialState = false, onToggle, draggable = false, activeColor = 'rgb(0,153,221)', inactiveColor = 'rgb(92,92,92)') {
       const btn = document.createElement('button');
@@ -214,27 +242,23 @@
       this.container.appendChild(btn);
       return btn;
     }
+
     // Add Text Input
-    addTextInput(label, onChange){
-      const wrapper = document.createElement('div');
-      wrapper.style.marginBottom = '8px';
-
-      const labelEl = document.createElement('label');
-      labelEl.textContent = `${label}: `;
-      wrapper.appendChild(labelEl);
-
+    addTextInput(label, onChange) {
       const input = document.createElement('input');
 
+      input.placeholder = label;
       input.style.width = '100%';
       input.style.boxSizing = 'border-box';
-      input.style.marginTop = '4px';
-      
+      input.style.padding = "6px";
+      input.style.fontSize = "14px";
+      input.style.marginTop = '2px';
+
       input.addEventListener('input', () => {
         onChange(input.value);
       });
 
-      wrapper.appendChild(input);
-      this.container.appendChild(wrapper);
+      this.container.appendChild(input);
 
       // save to inputs
       if (!this.inputs) this.inputs = {};
@@ -244,7 +268,7 @@
     }
 
     // Add Number Input
-    addNumberInput(label, value, min, max, step, onChange){
+    addNumberInput(label, value, min, max, step, onChange) {
       const wrapper = document.createElement('div');
       wrapper.style.marginBottom = '8px';
 
@@ -262,7 +286,7 @@
       input.style.width = '100%';
       input.style.boxSizing = 'border-box';
       input.style.marginTop = '4px';
-      
+
       input.addEventListener('wheel', (e) => {
         e.preventDefault();
         let current = parseFloat(input.value) || 0;
@@ -300,50 +324,45 @@
 
     // Add Dropdown
     addDropdown(label, options = [], onChange, color = 'rgba(92, 92, 92, 1)') {
-      const wrapper = document.createElement('div');
-      wrapper.style.display = 'block';
-      wrapper.style.marginTop = '2px';
-      wrapper.style.width = '100%';
-
-      // ラベル
-      const span = document.createElement('span');
-      span.textContent = label;
-      span.style.display = 'block';
-      span.style.fontSize = '14px';
-      span.style.marginBottom = '2px';
-      wrapper.appendChild(span);
-
       // セレクトボックス
       const select = document.createElement('select');
       select.style.width = '100%';
+      select.style.marginTop = '2px';
       select.style.padding = '6px';
       select.style.border = 'none';
       select.style.backgroundColor = color;
       select.style.color = 'white';
       select.style.fontSize = '14px';
       select.style.cursor = 'pointer';
+      select.style.textAlign = 'center';
 
       // 選択肢を追加
-      options.forEach(opt => {
+      if (options.length == 0) {
         const option = document.createElement('option');
-        if (typeof opt === 'string') {
-          option.value = opt;
-          option.textContent = opt;
-        } else {
-          // { value: 'val', text: '表示名' } 形式もサポート
-          option.value = opt.value;
-          option.textContent = opt.text;
-        }
+        option.value = 0;
+        option.textContent = label;
         select.appendChild(option);
-      });
+      } else {
+        options.forEach(opt => {
+          const option = document.createElement('option');
+          if (typeof opt === 'string') {
+            option.value = opt;
+            option.textContent = label + '：' + opt;
+          } else {
+            // { value: 'val', text: '表示名' } 形式もサポート
+            option.value = opt.value;
+            option.textContent = opt.text;
+          }
+          select.appendChild(option);
+        });
+      }
 
       // イベント
       select.addEventListener('change', () => {
         if (typeof onChange === 'function') onChange(select.value);
       });
 
-      wrapper.appendChild(select);
-      this.container.appendChild(wrapper);
+      this.container.appendChild(select);
 
       return select;
     }
@@ -387,42 +406,79 @@
 
   const windows = [];
   let fileNameInput = null;
-  let allProcBtn = null;
   let fileExtList = null;
-  let saveDirBtn = null;
+  let fileNameWrapper = null;
+  let refDropdown = null;
+  let savDropdown = null;
+  let refSavWrapper = null;
+
+  let selectCutFolderCallBack = () => { };
+  let refDropdownCallBack = () => { };
+  let savDropdownCallBack = () => { };
 
   // フロートウィンドウの初期設定
-  const init = function() {
+  const init = function () {
     windows.push(new ParamsWindow('param-global', 'rgba(224, 230, 255, 0.52)'));
     windows[0].el.style.height = '470px';
 
-    windows[0].addButton('<i class="fa-solid fa-folder-open"></i> フォルダからアップ', () => window.CanvasEditor.uploadByDirHandle(), true, 'rgb(0, 185, 40)');
+    // 参照と保存
+    windows[0].addLabel('参照と保存');
+    windows[0].addButton('<i class="fa-solid fa-folder-open"></i> カットフォルダ', () => { selectCutFolderCallBack() }, true, 'rgba(23, 135, 255, 1)');
+    {
+      const btns = [];
+      const widths = ['40%', '20%', '40%'];
+      refDropdown = windows[0].addDropdown('参照', [], (e) => { refDropdownCallBack(e); }, 'rgba(23, 135, 255, 1)');
+      savDropdown = windows[0].addDropdown('保存先', [], (e) => { savDropdownCallBack(e); }, 'rgba(23, 135, 255, 1)');
+      btns.push(refDropdown);
+      btns.push(windows[0].addButton('⇒', () => { }, false, 'rgba(23, 135, 255, 1)'));
+      btns.push(savDropdown);
+      refSavWrapper = windows[0].addWrapper(btns, widths);
+    }
 
-    // ファイル名入力欄
-    fileNameInput = windows[0].addTextInput('保存ファイル名', () => {
-      if (fileNameInput.value.trim() === '') {
-        fileNameInput.classList.add('blink');
-      } else {
-        fileNameInput.classList.remove('blink');
+    const setRefDropdown = (labels) => { updateSelectOptions(refDropdown, labels) };
+    const setSavDropdown = (labels) => { updateSelectOptions(savDropdown, labels) };
+
+    function updateSelectOptions(selectElement, optionLabels) {
+      // 1. 既存の option をすべて削除
+      while (selectElement.firstChild) {
+        selectElement.removeChild(selectElement.firstChild);
       }
-    });
-    fileNameInput.classList.add('blink');
 
-    // 表示切替ボタン
+      // 2. 新しい option を追加
+      optionLabels.forEach((label) => {
+        const option = document.createElement('option');
+        option.textContent = label;
+        selectElement.appendChild(option);
+      });
+    }
+
+    {
+      const btns = [];
+      const widths = ['65%', '35%'];
+      btns.push(fileNameInput = windows[0].addTextInput('保存名', () => { }));
+      btns.push(fileExtList = windows[0].addDropdown('保存形式', [
+        { value: 'tga', text: '.tga' },
+        { value: 'png', text: '.png' },
+        { value: 'tif', text: '.tif' },
+      ], () => { }, 'rgba(23, 135, 255, 1)'));
+      fileNameWrapper = windows[0].addWrapper(btns, widths);
+    }
+
+    windows[0].addButton('<i class="fas fa-file-download"></i> 全て保存', () => window.Core.saveAllImages(), false, 'rgba(23, 135, 255, 1)');
+
+    // 表示切替
+    windows[0].addLabel('表示切替');
     windows[0].addButton('<i class="fa-solid fa-image"></i> 入力画像', () => window.Core.setShowMode('original'), true, 'rgb(0, 185, 40)');
     windows[0].addButton('<i class="fa-regular fa-image"></i> 出力画像', () => window.Core.setShowMode('processed'), true, 'rgb(0, 185, 40)');
-    const sharpnessBtn = windows[0].addToggle('<i class="fa-solid fa-pencil"></i> シャープネス', true, () => window.ConfigEditor.updateCurrentCfg(), false, 'rgba(255, 104, 104, 1)', 'rgba(114, 114, 114, 1)');
-    const denoiseList = windows[0].addDropdown('デノイズレベル', ['3','2','1','0'], () => window.ConfigEditor.updateCurrentCfg(), 'rgba(114, 114, 114, 1)');
     // windows[0].addButton('<i class="fa-solid fa-pencil"></i> 筆圧値', () => window.Core.setShowMode('pressure'), true);
     // windows[0].addButton('<i class="fa-solid fa-wave-square"></i> 線検知フィルタ', () => window.Core.setShowMode('log'), true);
 
-    // その他
-    const modeList = { 'デフォルト':'camera', '閾値上げ':'highTh', '閾値下げ':'lowTh' }; // カーソルモードと表示名の対応
-    windows[0].addDropdown('カーソルモード', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.setCursorMode(modeList[e]); }, 'rgba(89, 98, 219, 1)');
-    allProcBtn = windows[0].addButton('<i class="fa-solid fa-images"></i> 全画像処理', () => window.Core.processAllImages(), false, 'rgb(0, 153, 221)');
-    fileExtList = windows[0].addDropdown('保存形式', ['tga', 'png', 'tif'], () => {}, 'rgb(0, 185, 40)');
-    saveDirBtn = windows[0].addButton('<i class="fa-solid fa-folder-open"></i> 保存先を選択', () => window.Core.setDirHandle(), false, 'rgb(0, 185, 40)');
-    windows[0].addButton('<i class="fas fa-file-download"></i> すべて保存', () => window.Core.saveAllImages(), false, 'rgb(0, 153, 221)');
+    // 出力の調整
+    windows[0].addLabel('出力の調整');
+    const sharpnessBtn = windows[0].addToggle('シャープネス', true, () => window.ConfigEditor.updateCurrentCfg(), false, 'rgba(255, 104, 104, 1)', 'rgba(114, 114, 114, 1)');
+    const denoiseList = windows[0].addDropdown('デノイズ強度', ['3', '2', '1', '0'], () => window.ConfigEditor.updateCurrentCfg(), 'rgba(82, 82, 82, 1)');
+    const modeList = { 'デフォルト': 'camera', '閾値上げ': 'highTh', '閾値下げ': 'lowTh' }; // カーソルモードと表示名の対応
+    windows[0].addDropdown('カーソル', ['デフォルト', '閾値上げ', '閾値下げ'], (e) => { window.Core.setCursorMode(modeList[e]); }, 'rgba(89, 98, 219, 1)');
 
     // --- ウィンドウ表示切替 ---
     let visible = true;
@@ -436,27 +492,36 @@
     // ウィンドウのトグルボタンは一旦非表示
     toggleButton.style.display = 'none';
 
-    const blinkAllProcBtn = function(isBlink){
-      if(isBlink) allProcBtn.classList.add('blink');
-      else allProcBtn.classList.remove('blink');
+    const getFileName = function () { return fileNameInput.value.trim(); }
+    const getFileExt = function () { return fileExtList.value; }
+
+    const getCfgStats = function () { return { enableSharpness: parseInt(sharpnessBtn.dataset.toggled), denoiseLevel: parseInt(denoiseList.value) }; }
+
+
+    const setSelectCutFolderCallBack = function (func) {
+      selectCutFolderCallBack = func;
     }
-    const getFileName = function(){ return fileNameInput.value.trim(); }
-    const getFileExt = function(){ return fileExtList.value; }
 
-    const getCfgStats = function(){ return {enableSharpness:parseInt(sharpnessBtn.dataset.toggled), denoiseLevel:parseInt(denoiseList.value)}; }
+    const setRefDropdownCallBack = function (func) {
+      refDropdownCallBack = func;
+    }
+    const setSavDropdownCallBack = function (func) {
+      savDropdownCallBack = func;
+    }
 
-    const setSaveDirName = function(name){ saveDirBtn.innerHTML = `<i class="fa-solid fa-folder-open"></i> 保存先 ⇒ ${name}`; }
-  
     //// 共有オブジェクト
     window.FloatPanel = {
       updateFilenameInput,
-      blinkAllProcBtn,
       getFileName,
       getFileExt,
       getCfgStats,
-      setSaveDirName,
+      setSelectCutFolderCallBack,
+      setRefDropdownCallBack,
+      setSavDropdownCallBack,
+      setRefDropdown,
+      setSavDropdown,
     }
-    
+
     // Keyboard shortcuts: showMode toggle
     document.addEventListener('keydown', (e) => {
       // Ignore when typing in inputs/textareas
@@ -474,7 +539,7 @@
     });
   }
 
-  const updateFilenameInput = function(fileName){
+  const updateFilenameInput = function (fileName) {
     fileNameInput.value = fileName;
     fileNameInput.dispatchEvent(new Event('input'));
   }

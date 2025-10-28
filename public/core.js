@@ -1,4 +1,4 @@
-(function(){
+(function () {
   // ファイルデータ
   let fileInfos = [];
   // 画像データ
@@ -13,6 +13,10 @@
   let globalConfig = {}; // グローバルコンフィグ
   let frameConfigs = []; // フレームコンフィグ
   let dirHandle;
+  let dirHandleTrace;
+  let dirHandleCell;
+  let traceDirEntries = [];
+  let cellDirEntries = [];
 
   //// HTML要素
   // ページ設定
@@ -121,9 +125,9 @@
   });
 
   // 画像データ setter/getter
-  const initImageDatas = function(fis){
+  const initImageDatas = function (fis) {
     uploadedImages = new Array(fis.length);
-    processedImages = new Array(fis.length).fill(0).map((_)=>{return { pressure:null, log:null, processed:null, hash:'', dhash:'', saved:0 }});
+    processedImages = new Array(fis.length).fill(0).map((_) => { return { pressure: null, log: null, processed: null, hash: '', dhash: '', saved: 0 } });
     drawImages = new Array(fis.length);
     frameConfigs = new Array(fis.length).fill(0);
     fileInfos = new Array(fis.length);
@@ -136,78 +140,78 @@
     });
   }
 
-  const setUploadedImage = function(img, idx = frameIndex){ 
+  const setUploadedImage = function (img, idx = frameIndex) {
     uploadedImages[idx] = img;
   }
-  const getUploadedImage = function(idx = frameIndex){ 
+  const getUploadedImage = function (idx = frameIndex) {
     return uploadedImages[idx];
   }
 
-  const setProcessedData = function(data, idx = frameIndex){ 
+  const setProcessedData = function (data, idx = frameIndex) {
     processedImages[idx].pressure = data.pressure;
     processedImages[idx].log = data.log;
     processedImages[idx].processed = data.processed;
   }
-  const getProcessedData = function(idx = frameIndex){ 
+  const getProcessedData = function (idx = frameIndex) {
     return processedImages[idx];
   }
 
-  const setDrawImage = async function(img, idx = frameIndex){
+  const setDrawImage = async function (img, idx = frameIndex) {
     const hash = await getImageDataHash(img);
-    drawImages[idx] = {img, hash};
-    
+    drawImages[idx] = { img, hash };
+
     prepareAndShowImage(idx);
   }
 
   // モード setter/getter
-  const setShowMode = function(mode){
+  const setShowMode = function (mode) {
     showMode = mode;
-    if(cursorMode == 'camera' || mode != 'processed') window.CanvasEditor.hideDrawCanvas();
+    if (cursorMode == 'camera' || mode != 'processed') window.CanvasEditor.hideDrawCanvas();
     else window.CanvasEditor.showDrawCanvas();
     prepareAndShowImage();
   }
-  const getShowMode = function(){ return showMode; }
+  const getShowMode = function () { return showMode; }
 
-  const setCursorMode = function(mode){
+  const setCursorMode = function (mode) {
     cursorMode = mode;
-    if(mode == 'camera' || showMode != 'processed') window.CanvasEditor.hideDrawCanvas();
+    if (mode == 'camera' || showMode != 'processed') window.CanvasEditor.hideDrawCanvas();
     else window.CanvasEditor.showDrawCanvas();
   }
-  const getCursorMode = function(){ return cursorMode; }
+  const getCursorMode = function () { return cursorMode; }
 
-  const setFrameIndex = function(idx){
+  const setFrameIndex = function (idx) {
     frameIndex = idx;
     window.CanvasEditor.drawImg(drawImages[idx]);
     prepareAndShowImage();
   }
-  const getFrameIndex = function(){ return frameIndex; }
-  
+  const getFrameIndex = function () { return frameIndex; }
+
   // コンフィグ setter/getter
-  const setGlobalConfig = function(cfg){
+  const setGlobalConfig = function (cfg) {
     globalConfig = cfg;
     prepareAndShowImage();
   }
-  const getGlobalConfig = function(){ return JSON.parse(JSON.stringify(globalConfig)); }
+  const getGlobalConfig = function () { return JSON.parse(JSON.stringify(globalConfig)); }
 
-  const setFrameConfigs = function(cfg, toggles){
-    for(let i = 0; i < frameConfigs.length; ++i) {
-      if(toggles[i]) {
+  const setFrameConfigs = function (cfg, toggles) {
+    for (let i = 0; i < frameConfigs.length; ++i) {
+      if (toggles[i]) {
         frameConfigs[i] = cfg;
         window.FrameManager.drawGear(i);
       }
     }
     prepareAndShowImage();
   }
-  const getFrameConfig = function(idx = frameIndex){
+  const getFrameConfig = function (idx = frameIndex) {
     return frameConfigs[idx];
   }
 
-  const checkLatest = function(idx){ return frameConfigs[idx] ? frameConfigs[idx].hash == processedImages[idx].hash : globalConfig.hash == processedImages[idx].hash }
+  const checkLatest = function (idx) { return frameConfigs[idx] ? frameConfigs[idx].hash == processedImages[idx].hash : globalConfig.hash == processedImages[idx].hash }
 
-  const clearFrameCfg = function(){
+  const clearFrameCfg = function () {
     const toggles = window.FrameManager.getCfgToggleStates();
-    for(let i = 0; i < frameConfigs.length; ++i){
-      if(toggles[i]) {
+    for (let i = 0; i < frameConfigs.length; ++i) {
+      if (toggles[i]) {
         frameConfigs[i] = null;
       }
     }
@@ -241,7 +245,7 @@
     window.FrameManager.updateFrameButtons();
   }
 
-  const saveImage = async function(idx, refresh) {
+  const saveImage = async function (idx, refresh) {
     // 確認処理
     const fileName = window.FloatPanel.getFileName();
     const fileFormat = window.FloatPanel.getFileExt();
@@ -258,20 +262,20 @@
       return false;
     }
     const base = fileName;
-    const num  = fileInfos[idx].padded;
+    const num = fileInfos[idx].padded;
     const name = `${base}_${num}.${fileFormat}`;
-    if(!dirHandle) dirHandle = await window.showDirectoryPicker();
+    if (!dirHandleCell) dirHandleCell = await window.showDirectoryPicker();
     else {
-      const ok = confirm(`「${dirHandle.name}」フォルダに「${name}」(同名は上書き)で保存しますか？`);
+      const ok = confirm(`「${dirHandleCell.name}」フォルダに「${name}」(同名は上書き)で保存しますか？`);
       if (!ok) {
         return false;
       }
     }
 
-    if(!await checkPermission()) return;
+    if (!await checkPermission()) return;
 
     // 画像処理
-    if(showMode !== 'processed') await setShowMode('processed');
+    if (showMode !== 'processed') await setShowMode('processed');
     await prepareAndShowImage(idx);
     const imageData = processedImages[idx].processed;
 
@@ -288,26 +292,26 @@
     }
 
     // ダウンロード
-    const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+    const fileHandle = await dirHandleCell.getFileHandle(name, { create: true });
     const writable = await fileHandle.createWritable();
     await writable.write(blob);
     await writable.close();
 
     // 画面更新処理
-    if(refresh) await prepareAndShowImage();
+    if (refresh) await prepareAndShowImage();
     return true;
   }
 
-  const processAllImages = async function(){
-    if(showMode !== 'processed') await setShowMode('processed');
+  const processAllImages = async function () {
+    if (showMode !== 'processed') await setShowMode('processed');
     for (let i = 0; i < uploadedImages.length; i++) {
       await prepareAndShowImage(i);
     }
     await prepareAndShowImage();
     showStatus('全画像の処理を実行しました。', 'success', 3000);
   }
-  
-  const saveAllImages = async function() {
+
+  const saveAllImages = async function () {
     // 確認処理
     const fileName = window.FloatPanel.getFileName();
     const fileFormat = window.FloatPanel.getFileExt();
@@ -324,16 +328,16 @@
       alert('保存する画像がありません。');
       return;
     }
-    if(!dirHandle) dirHandle = await window.showDirectoryPicker();
+    if (!dirHandleCell) dirHandleCell = await window.showDirectoryPicker();
     else {
-      const ok = confirm(`「${dirHandle.name}」フォルダに保存します。同じ名前のファイルは上書きされますが、よろしいですか？`);
+      const ok = confirm(`「${dirHandleCell.name}」フォルダに保存します。同じ名前のファイルは上書きされますが、よろしいですか？`);
       if (!ok) {
         return false;
       }
     }
 
-    if(!await checkPermission()) return;
-    
+    if (!await checkPermission()) return;
+
     // 画像処理
     await processAllImages();
     showStatus('<div class="loading"><div class="spinner"></div>画像ファイルを生成中...</div>');
@@ -354,9 +358,9 @@
       }
 
       // ダウンロード
-      const num  = fileInfos[i].padded;
+      const num = fileInfos[i].padded;
       const name = `${fileName}_${num}.${fileFormat}`;
-      const fileHandle = await dirHandle.getFileHandle(name, { create: true });
+      const fileHandle = await dirHandleCell.getFileHandle(name, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
@@ -367,26 +371,69 @@
     showStatus('保存が完了しました。', 'success', 3000);
   }
 
-  const setDirHandle = async function() {
+  const setDirHandle = async function () {
     dirHandle = await window.showDirectoryPicker();
     await checkPermission();
 
-    window.FloatPanel.setSaveDirName(dirHandle.name);
+    {
+      // 1. dirHandle/_trace 内のフォルダを収集
+      try {
+        traceDirEntries.length = 0;
+        const traceHandle = await dirHandle.getDirectoryHandle('_trace');
+        for await (const [name, handle] of traceHandle.entries()) {
+          if (handle.kind === 'directory') {
+            traceDirEntries.push({ name: `_${name}`, handle });
+          }
+        }
+      } catch (err) {
+        console.warn('"_trace" フォルダが存在しないかアクセスできません:', err);
+      }
+
+      // 2. dirHandle 直下の "_" で始まらないフォルダを収集
+      cellDirEntries.length = 0;
+      for await (const [name, handle] of dirHandle.entries()) {
+        if (handle.kind === 'directory' && !name.startsWith('_trace')) {
+          cellDirEntries.push({ name, handle });
+        }
+      }
+
+      dirHandleTrace = traceDirEntries[0].handle;
+      dirHandleCell = cellDirEntries[0].handle;
+      window.FloatPanel.setRefDropdown(traceDirEntries.map(e => e.name));
+      window.FloatPanel.setSavDropdown(cellDirEntries.map(e => e.name));
+
+    }
+
+    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
+
     return dirHandle;
   }
 
-  const existDirHandle = function() {
+  const existDirHandle = function () {
     return (!!dirHandle);
   }
 
-  const checkPermission = async function() {
+  const checkPermission = async function () {
     const permission = await dirHandle.queryPermission({ mode: 'readwrite' });
-    if(permission !== 'granted') { 
+    if (permission !== 'granted') {
       const request = await dirHandle.requestPermission({ mode: 'readwrite' });
-      if(request !== 'granted') return false;
+      if (request !== 'granted') return false;
     }
     return true;
   }
+
+  const setRefDirectory = function (e) {
+    dirHandleTrace = traceDirEntries.find(ent => ent.name === e).handle;
+    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
+  }
+
+  const setSavDirectory = function (e) {
+    dirHandleCell = cellDirEntries.find(ent => ent.name === e).handle;
+  }
+
+  window.FloatPanel.setSelectCutFolderCallBack(setDirHandle);
+  window.FloatPanel.setRefDropdownCallBack(setRefDirectory);
+  window.FloatPanel.setSavDropdownCallBack(setSavDirectory);
 
   window.Core = {
     // 画像データ
@@ -417,6 +464,8 @@
     saveAllImages,
     setDirHandle,
     existDirHandle,
+    setRefDirectory,
+    setSavDirectory,
   }
 
   window.ConfigEditor.init();
