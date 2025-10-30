@@ -1,0 +1,55 @@
+{
+  "bgColor": "#e8eff2",
+  "bgLabelColor": "#ffffff",
+  "fileName": "デフォルト",
+  "colorBlocks": [
+    {
+      "sliders": {
+        "threshold": "60",
+        "log": "20",
+        "weight": "50"
+      },
+      "numbers": {},
+      "color": "#7b7f7e",
+      "labelColor": "#000000",
+      "enabled": true
+    },
+    {
+      "sliders": {
+        "threshold": "60",
+        "log": "40",
+        "weight": "30"
+      },
+      "numbers": {},
+      "color": "#d58b8d",
+      "labelColor": "#ff0000",
+      "enabled": true
+    },
+    {
+      "sliders": {
+        "threshold": "56",
+        "log": "40",
+        "weight": "40"
+      },
+      "numbers": {},
+      "color": "#9bb76f",
+      "labelColor": "#00ff00",
+      "enabled": true
+    },
+    {
+      "sliders": {
+        "threshold": "56",
+        "log": "40",
+        "weight": "30"
+      },
+      "numbers": {},
+      "color": "#94b6e3",
+      "labelColor": "#0000ff",
+      "enabled": true
+    }
+  ],
+  "enableSharpness": 1,
+  "denoiseLevel": 3,
+  "hash": "{\"bgColor\":\"#e8eff2\",\"bgLabelColor\":\"#ffffff\",\"colorBlocks\":[{\"sliders\":{\"threshold\":\"60\",\"log\":\"20\",\"weight\":\"50\"},\"numbers\":{},\"color\":\"#7b7f7e\",\"labelColor\":\"#000000\",\"enabled\":true},{\"sliders\":{\"threshold\":\"60\",\"log\":\"40\",\"weight\":\"30\"},\"numbers\":{},\"color\":\"#d58b8d\",\"labelColor\":\"#ff0000\",\"enabled\":true},{\"sliders\":{\"threshold\":\"56\",\"log\":\"40\",\"weight\":\"40\"},\"numbers\":{},\"color\":\"#9bb76f\",\"labelColor\":\"#00ff00\",\"enabled\":true},{\"sliders\":{\"threshold\":\"56\",\"log\":\"40\",\"weight\":\"30\"},\"numbers\":{},\"color\":\"#94b6e3\",\"labelColor\":\"#0000ff\",\"enabled\":true}],\"enableSharpness\":1,\"denoiseLevel\":3}",
+  "version": 2
+}
