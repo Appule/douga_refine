@@ -85,29 +85,11 @@
     clearFrameCfgBtn.addEventListener('click', () => window.Core.clearFrameCfg());
 
     createBgBlock();
-    loadLocalConfig();
+    loadConfig(DEFAULT_CONFIG, true);
   }
 
   // エクスポートボタン
   exportBtn.addEventListener('click', saveConfig);
-
-  // ローカルストレージからコンフィグをロード
-  const loadLocalConfig = function () {
-    const localConfig = localStorage.getItem("localConfigData");
-    const parsed = JSON.parse(localConfig);
-    if (parsed && parsed.version == currentVersion) {
-      try {
-        loadConfig(parsed, true);
-        showStatus('前回のConfigを復元しました。', 'success', 3000);
-      } catch (error) {
-        console.error('Error loading local config:', error);
-        showStatus('前回のConfigの復元に失敗しました。', 'error', 3000);
-      }
-    } else {
-      loadConfig(DEFAULT_CONFIG, true);
-      showStatus('前回のConfigは互換性がありません。', 'error', 3000);
-    }
-  }
 
   // ConfigFileロード関数
   function loadConfigFile(file) {
@@ -118,7 +100,6 @@
       try {
         const fileName = file.name.split(".")[0];
         parsed.fileName = fileName;
-        localStorage.setItem("localConfigData", JSON.stringify(parsed));
         loadConfig(parsed, true);
         showStatus('Configファイルの読み込みが完了しました。', 'success', 3000);
       } catch (error) {
@@ -132,7 +113,6 @@
   // コンフィグのセーブ (エクスポート)
   function saveConfig() {
     currentConfig.version = currentVersion;
-    localStorage.setItem("localConfigData", JSON.stringify(currentConfig));
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);

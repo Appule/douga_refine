@@ -2,9 +2,8 @@
 
 // Add Label
 function createLabel(label) {
-  const labelEl = document.createElement('label');
+  const labelEl = document.createElement('div');
   labelEl.textContent = `${label}`;
-  labelEl.style.display = 'block';
   labelEl.style.width = '100%';
   labelEl.style.marginTop = '2px';
   labelEl.style.padding = "2px";
@@ -59,7 +58,6 @@ function createWrapper(btns, widths) {
 function createToggle(label, initialState = false, onToggle, activeColor = 'rgb(0,153,221)', inactiveColor = 'rgb(92,92,92)') {
   const btn = document.createElement('button');
   btn.innerHTML = `${label}`;
-  btn.style.display = 'block';
   btn.style.marginTop = '2px';
   btn.style.width = '100%';
   btn.style.border = "none";

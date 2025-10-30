@@ -32,107 +32,6 @@
   // ページ設定
   document.addEventListener('DOMContentLoaded', async () => {
 
-    const topContainer = document.querySelector('.top-container');
-    const mainEditorPanel = document.querySelector('.main-editor-panel');
-    const frameMenuPanel = document.querySelector('.frame-menu-panel');
-    const colorEditorPanel = document.querySelector('.color-editor-panel');
-    const resizerV = document.querySelector('.resizer-v');
-    const resizerH = document.querySelector('.resizer-h');
-
-    let isResizingV = false;
-    let isResizingH = false;
-    let startX = 0;
-    let startY = 0;
-    let startMainWidth = 0;
-    let startFrameWidth = 0;
-    let startTopHeight = 0;
-    let startColorHeight = 0;
-
-    const minWidth = 100;
-    const minHeight = 100;
-
-    // 垂直リサイザー（V）
-    resizerV.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      isResizingV = true;
-      startX = e.clientX;
-      startMainWidth = mainEditorPanel.offsetWidth;
-      startFrameWidth = frameMenuPanel.offsetWidth;
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    // 水平リサイザー（H）
-    resizerH.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      isResizingH = true;
-      startY = e.clientY;
-      startTopHeight = topContainer.offsetHeight;
-      startColorHeight = colorEditorPanel.offsetHeight;
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (isResizingV) {
-        const deltaX = e.clientX - startX;
-        const newMainWidth = Math.max(minWidth, startMainWidth + deltaX);
-        const newFrameWidth = Math.max(minWidth, startFrameWidth - deltaX);
-
-        if (newMainWidth >= minWidth && newFrameWidth >= minWidth) {
-          mainEditorPanel.style.width = `${newMainWidth}px`;
-          frameMenuPanel.style.width = `${newFrameWidth}px`;
-        } else {
-          if (newMainWidth < minWidth) {
-            mainEditorPanel.style.width = `${minWidth}px`;
-            frameMenuPanel.style.width = `${startFrameWidth - (minWidth - startMainWidth)}px`;
-          } else if (newFrameWidth < minWidth) {
-            frameMenuPanel.style.width = `${minWidth}px`;
-            mainEditorPanel.style.width = `${startMainWidth + (startFrameWidth - minWidth)}px`;
-          }
-        }
-      }
-
-      if (isResizingH) {
-        const deltaY = e.clientY - startY;
-        const newTopHeight = Math.max(minHeight, startTopHeight + deltaY);
-        const newColorHeight = Math.max(minHeight, startColorHeight - deltaY);
-
-        if (newTopHeight >= minHeight && newColorHeight >= minHeight) {
-          topContainer.style.height = `${newTopHeight}px`;
-          colorEditorPanel.style.height = `${newColorHeight}px`;
-        } else {
-          if (newTopHeight < minHeight) {
-            topContainer.style.height = `${minHeight}px`;
-            colorEditorPanel.style.height = `${startColorHeight - (minHeight - startTopHeight)}px`;
-          } else if (newColorHeight < minHeight) {
-            colorEditorPanel.style.height = `${minHeight}px`;
-            topContainer.style.height = `${startTopHeight + (startColorHeight - minHeight)}px`;
-          }
-        }
-      }
-    });
-
-    document.addEventListener('selectstart', (e) => {
-      e.preventDefault();
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (isResizingV || isResizingH) {
-        isResizingV = false;
-        isResizingH = false;
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = '';
-      }
-    });
-
-    window.addEventListener('blur', () => {
-      isResizingV = false;
-      isResizingH = false;
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = '';
-    });
-
     const response = await fetch('./_config/default.json');
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const defaultConfigFromFile = await response.json();
@@ -341,7 +240,6 @@
     // 確認処理
     if (fileName === '') {
       alert('ファイル名を入力してください。');
-      fileNameInput.classList.add('blink');
       return;
     }
     if (fileExt === '') {
@@ -469,7 +367,7 @@
   window.FloatPanel.setFileNameInputCallBack(setFileName);
   window.FloatPanel.setFileExtListCallBack(setFileExt);
   window.FloatPanel.setSaveAllBtnCallBack(saveAllImages);
-  // `float-panel.js`の`init`内で直接`setShowMode`を呼び出すように変更したため、以下の2行は不要になります。
+
   window.FloatPanel.setShowInCallBack(() => { setShowMode('original'); });
   window.FloatPanel.setShowOutCallBack(() => { setShowMode('processed'); });
 

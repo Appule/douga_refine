@@ -51,7 +51,6 @@ class FloatWindow {
       this._updateRelativeFromPixel();
     });
 
-
     // Draggable
     interact(this.el).draggable({
       inertia: false,
@@ -167,8 +166,8 @@ class FloatWindow {
   hide() {
     this.el.style.display = 'none';
   }
-  toggle(visible) {
-    this.el.style.display = visible ? 'block' : 'none';
+  toggle() {
+    this.el.style.display = (this.el.style.display === 'none') ? 'block' : 'none';
   }
 
   addElement(element, container = this.container) {
