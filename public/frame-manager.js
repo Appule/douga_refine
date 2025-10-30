@@ -159,10 +159,10 @@
     });
     // カラー編集のタイトル更新
     if (noActive) {
-      colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe"></i> グローバルコンフィグ';
+      colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-globe" style="color: blue;"></i> グローバルコンフィグ';
       window.ConfigEditor.loadConfig(window.Core.getGlobalConfig());
     } else {
-      colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-regular fa-images"></i> フレームコンフィグ';
+      colorEditorTitle.innerHTML = 'カラー編集 ⇒ <i class="fa-solid fa-gear" style="color: orange;"></i> フレームコンフィグ';
       const cfg = window.Core.getFrameConfig(frameCfgIndex) ? window.Core.getFrameConfig(frameCfgIndex) : window.Core.getGlobalConfig();
       window.ConfigEditor.loadConfig(cfg);
     }

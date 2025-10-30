@@ -40,25 +40,25 @@ function hexToInt32(hex) {
     throw new Error('Invalid HEX color: ' + hex);
   }
   // ビットシフトで 0xAABBGGRR
-  return ((r & 0xFF))  | 
-         ((g & 0xFF) << 8)  | 
-         ((b & 0xFF) << 16) | 
-         ((a & 0xFF) << 24);
+  return ((r & 0xFF)) |
+    ((g & 0xFF) << 8) |
+    ((b & 0xFF) << 16) |
+    ((a & 0xFF) << 24);
 }
 
 function hexToHue(colInt32) {
   // 0xRRGGBBAA から R,G,B を取り出し [0,1] に正規化
-  const r = ((colInt32 >> 0 ) & 0xff) / 255;
-  const g = ((colInt32 >> 8 ) & 0xff) / 255;
+  const r = ((colInt32 >> 0) & 0xff) / 255;
+  const g = ((colInt32 >> 8) & 0xff) / 255;
   const b = ((colInt32 >> 16) & 0xff) / 255;
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;
   let h = 0;
   if (d > 0) {
-    if      (max === r) h = ((g - b) / d) % 6;
+    if (max === r) h = ((g - b) / d) % 6;
     else if (max === g) h = (b - r) / d + 2;
-    else                h = (r - g) / d + 4;
+    else h = (r - g) / d + 4;
     h *= 60;
     if (h < 0) h += 360;
   }
@@ -85,7 +85,7 @@ function hexToRgb(hex) {
   }
 }
 
-async function hashToColor(hash, s=70, l=50) {
+async function hashToColor(hash, s = 70, l = 50) {
   const encoder = new TextEncoder();
   const data = encoder.encode(hash);
 
@@ -99,8 +99,6 @@ async function hashToColor(hash, s=70, l=50) {
   return `hsl(${hue}, ${s}%, ${l}%)`;
 }
 
-
-
 async function getImageDataHash(imageData) {
   const buffer = imageData.data.buffer; // Uint8ClampedArray → ArrayBuffer
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
@@ -111,7 +109,7 @@ async function getImageDataHash(imageData) {
 
 
 // Canvas ImageData → PNG Blob
-const encodePNG = function(imgData) {
+const encodePNG = function (imgData) {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     canvas.width = imgData.width;
@@ -130,7 +128,7 @@ const encodePNG = function(imgData) {
 }
 
 // Canvas ImageData → TIFF Blob
-const encodeTIFF = function(imgData) {
+const encodeTIFF = function (imgData) {
   // RGBA をそのまま Uint8Array で取得
   const rgba = new Uint8Array(imgData.data);
 
@@ -151,7 +149,7 @@ const encodeTIFF = function(imgData) {
 }
 
 // Canvas ImageData → TGA Blob (RGB)
-const encodeTGA = function(imgData) {
+const encodeTGA = function (imgData) {
   const w = imgData.width;
   const h = imgData.height;
   const pixels = imgData.data;
@@ -177,9 +175,9 @@ const encodeTGA = function(imgData) {
   const pixelEquals = (x1, y1, x2, y2) => {
     const i1 = (y1 * w + x1) * 4;
     const i2 = (y2 * w + x2) * 4;
-    return pixels[i1] === pixels[i2] && 
-          pixels[i1 + 1] === pixels[i2 + 1] && 
-          pixels[i1 + 2] === pixels[i2 + 2];
+    return pixels[i1] === pixels[i2] &&
+      pixels[i1 + 1] === pixels[i2 + 1] &&
+      pixels[i1 + 2] === pixels[i2 + 2];
   };
 
   // 下から上に処理（TGA標準）
@@ -187,12 +185,12 @@ const encodeTGA = function(imgData) {
     let x = 0;
     while (x < w) {
       const startX = x;
-      
+
       // 現在のピクセルから何個連続するかチェック
       let runLength = 1;
-      while (x + runLength < w && 
-            runLength < 128 && 
-            pixelEquals(startX, y, startX + runLength, y)) {
+      while (x + runLength < w &&
+        runLength < 128 &&
+        pixelEquals(startX, y, startX + runLength, y)) {
         runLength++;
       }
 
@@ -206,22 +204,22 @@ const encodeTGA = function(imgData) {
         // RAWパケット
         let rawCount = 1;
         let nextX = x + 1;
-        
+
         // 次に3個以上連続する箇所が出てくるまで、またはパケット上限まで
         while (nextX < w && rawCount < 128) {
           // 現在位置から3個連続チェック
           let consecutiveCount = 1;
-          while (nextX + consecutiveCount < w && 
-                consecutiveCount < 3 && 
-                pixelEquals(nextX, y, nextX + consecutiveCount, y)) {
+          while (nextX + consecutiveCount < w &&
+            consecutiveCount < 3 &&
+            pixelEquals(nextX, y, nextX + consecutiveCount, y)) {
             consecutiveCount++;
           }
-          
+
           // 3個以上連続するなら、RAWパケットを終了
           if (consecutiveCount >= 3) {
             break;
           }
-          
+
           rawCount++;
           nextX++;
         }

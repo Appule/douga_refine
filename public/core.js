@@ -1,4 +1,5 @@
 (function () {
+  //// 状態管理
   // ファイルデータ
   let fileInfos = [];
   // 画像データ
@@ -17,6 +18,9 @@
   let dirHandleCell;
   let traceDirEntries = [];
   let cellDirEntries = [];
+  // window-global
+  let fileName = '';
+  let fileExt = '';
 
   //// HTML要素
   // ページ設定
@@ -186,6 +190,19 @@
   }
   const getFrameIndex = function () { return frameIndex; }
 
+  document.addEventListener('keydown', (e) => {
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+    const key = e.key;
+
+    if (key.toLowerCase() === 'q' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      setShowMode((getShowMode() === 'processed') ? 'original' : 'processed');
+      return;
+    }
+  });
+
   // コンフィグ setter/getter
   const setGlobalConfig = function (cfg) {
     globalConfig = cfg;
@@ -247,13 +264,11 @@
 
   const saveImage = async function (idx, refresh) {
     // 確認処理
-    const fileName = window.FloatPanel.getFileName();
-    const fileFormat = window.FloatPanel.getFileExt();
     if (fileName === '') {
       alert('ファイル名を入力してください。');
       return false;
     }
-    if (fileFormat === '') {
+    if (fileExt === '') {
       alert('ファイル形式を選択してください。');
       return false;
     }
@@ -263,7 +278,7 @@
     }
     const base = fileName;
     const num = fileInfos[idx].padded;
-    const name = `${base}_${num}.${fileFormat}`;
+    const name = `${base}_${num}.${fileExt}`;
     if (!dirHandleCell) dirHandleCell = await window.showDirectoryPicker();
     else {
       const ok = confirm(`「${dirHandleCell.name}」フォルダに「${name}」(同名は上書き)で保存しますか？`);
@@ -281,14 +296,14 @@
 
     // エンコード
     let blob;
-    if (fileFormat === 'png') {
+    if (fileExt === 'png') {
       blob = await encodePNG(imageData);
-    } else if (fileFormat === 'tif') {
+    } else if (fileExt === 'tif') {
       blob = await encodeTIFF(imageData);
-    } else if (fileFormat === 'tga') {
+    } else if (fileExt === 'tga') {
       blob = await encodeTGA(imageData);
     } else {
-      throw new Error('Unsupported format: ' + fileFormat);
+      throw new Error('Unsupported format: ' + fileExt);
     }
 
     // ダウンロード
@@ -313,14 +328,12 @@
 
   const saveAllImages = async function () {
     // 確認処理
-    const fileName = window.FloatPanel.getFileName();
-    const fileFormat = window.FloatPanel.getFileExt();
     if (fileName === '') {
       alert('ファイル名を入力してください。');
       fileNameInput.classList.add('blink');
       return;
     }
-    if (fileFormat === '') {
+    if (fileExt === '') {
       alert('ファイル形式を選択してください。');
       return;
     }
@@ -347,19 +360,19 @@
       // エンコード
       const imageData = processedImages[i].processed;
       let blob;
-      if (fileFormat === 'png') {
+      if (fileExt === 'png') {
         blob = await encodePNG(imageData);
-      } else if (fileFormat === 'tif') {
+      } else if (fileExt === 'tif') {
         blob = await encodeTIFF(imageData);
-      } else if (fileFormat === 'tga') {
+      } else if (fileExt === 'tga') {
         blob = await encodeTGA(imageData);
       } else {
-        throw new Error('Unsupported format: ' + fileFormat);
+        throw new Error('Unsupported format: ' + fileExt);
       }
 
       // ダウンロード
       const num = fileInfos[i].padded;
-      const name = `${fileName}_${num}.${fileFormat}`;
+      const name = `${fileName}_${num}.${fileExt}`;
       const fileHandle = await dirHandleCell.getFileHandle(name, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
@@ -373,9 +386,9 @@
 
   const setDirHandle = async function () {
     dirHandle = await window.showDirectoryPicker();
-    await checkPermission();
+    const permission = await checkPermission();
 
-    {
+    if (permission) {
       // 1. dirHandle/_trace 内のフォルダを収集
       try {
         traceDirEntries.length = 0;
@@ -402,9 +415,9 @@
       window.FloatPanel.setRefDropdown(traceDirEntries.map(e => e.name));
       window.FloatPanel.setSavDropdown(cellDirEntries.map(e => e.name));
 
+      window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
     }
 
-    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
 
     return dirHandle;
   }
@@ -431,9 +444,27 @@
     dirHandleCell = cellDirEntries.find(ent => ent.name === e).handle;
   }
 
+  const setFileName = function (e) {
+    fileName = e.trim();
+  }
+
+  const setFileExt = function (e) {
+    fileExt = e;
+  }
+
   window.FloatPanel.setSelectCutFolderCallBack(setDirHandle);
   window.FloatPanel.setRefDropdownCallBack(setRefDirectory);
   window.FloatPanel.setSavDropdownCallBack(setSavDirectory);
+  window.FloatPanel.setFileNameInputCallBack(setFileName);
+  window.FloatPanel.setFileExtListCallBack(setFileExt);
+  window.FloatPanel.setSaveAllBtnCallBack(saveAllImages);
+  // `float-panel.js`の`init`内で直接`setShowMode`を呼び出すように変更したため、以下の2行は不要になります。
+  window.FloatPanel.setShowInCallBack(() => { setShowMode('original'); });
+  window.FloatPanel.setShowOutCallBack(() => { setShowMode('processed'); });
+
+  window.FloatPanel.setSharpnessBtnCallBack(() => { });
+  window.FloatPanel.setDenoiseLevelListCallBack(() => { });
+  window.FloatPanel.setCursorModeListCallBack(() => { });
 
   window.Core = {
     // 画像データ
@@ -461,7 +492,6 @@
     prepareAndShowImage,
     processAllImages,
     saveImage,
-    saveAllImages,
     setDirHandle,
     existDirHandle,
     setRefDirectory,
