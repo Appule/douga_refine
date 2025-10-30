@@ -50,6 +50,11 @@
   const clearFrameCfgBtn = document.getElementById('clearFrameCfgBtn');
   // 現在のコンフィグデータ
   let currentConfig = {};
+  // Callback Function
+  let clearConfigBtnCallBack
+  function setClearConfigBtnCallBack(func) {
+    clearConfigBtnCallBack = func;
+  };
 
   // カラー編集ウィンドウの初期設定
   const init = function () {
@@ -82,7 +87,7 @@
       }
     });
     // フレームコンフィグをクリア
-    clearFrameCfgBtn.addEventListener('click', () => window.Core.clearFrameCfg());
+    clearFrameCfgBtn.addEventListener('click', clearConfigBtnCallBack);
 
     createBgBlock();
     loadConfig(DEFAULT_CONFIG, true);
@@ -452,6 +457,7 @@
     loadConfig,
     updateCurrentCfg,
     debugMode,
+    setClearConfigBtnCallBack,
   }
 
 })();

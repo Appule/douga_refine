@@ -14,9 +14,9 @@
 
 <body>
 
-  <div id="window-global" class="window global-window"></div>
-  <div id="window-config" class="window config-window"></div>
-  <div id="window-frames" class="window frames-window"></div>
+  <div id="window-global" class="window global-window" style="display: none;"></div>
+  <div id="window-config" class="window config-window" style="display: none;"></div>
+  <div id="window-frames" class="window frames-window" style="display: none;"></div>
 
   <div class="container">
     <div class="top-container">
@@ -34,6 +34,8 @@
         <div id="status"></div>
       </div>
 
+      <div class="resizer-v"></div>
+
       <canvas id="previewCanvas" style="position:absolute; display:none; pointer-events:none; z-index:1000;"></canvas>
 
       <div class="frame-menu-panel">
@@ -44,6 +46,8 @@
         </div>
       </div>
     </div>
+
+    <div class="resizer-h"></div>
 
     <div class="color-editor-panel" id="cfg-drop-zone">
       <div class="color-header">

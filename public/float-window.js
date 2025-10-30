@@ -103,6 +103,7 @@ class FloatWindow {
     this._onWindowResize = this._onWindowResize.bind(this);
     window.addEventListener('resize', this._onWindowResize);
 
+    this.show();
   }
 
   _applyPixelSizeAndPosition(widthPx, heightPx, xPx, yPx) {

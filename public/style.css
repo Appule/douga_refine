@@ -353,6 +353,21 @@ html {
   opacity: 1;
 }
 
+/* リサイザーのスタイル */
+.resizer-v {
+  width: 5px;
+  cursor: col-resize;
+  background-color: #bbb;
+
+}
+
+.resizer-h {
+  height: 5px;
+  cursor: row-resize;
+  background-color: #bbb;
+
+}
+
 /* info message */
 .error {
   color: #e74c3c;

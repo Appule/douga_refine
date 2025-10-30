@@ -24,7 +24,7 @@
 
   // フロートウィンドウの初期設定
   const init = function () {
-    const gWin = new FloatWindow('window-global', { x: 0, y: 0 }, { width: 200, height: 470 }, 'rgba(224, 230, 255, 0.52)');
+    const gWin = new FloatWindow('window-global', { x: 0, y: 0 }, { width: window.innerWidth * 0.1, height: window.innerHeight * 0.4 }, 'rgba(224, 230, 255, 0.52)');
 
     //// 参照と保存
     // DOMの設定
