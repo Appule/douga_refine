@@ -1,5 +1,6 @@
-(function() {
+(function () {
   // hard-coded default config
+  const currentVersion = 2.1;
   const DEFAULT_CONFIG = {
     "bgColor": "#e8eff2",
     "bgLabelColor": "#ffffff",
@@ -7,31 +8,31 @@
     "enableSharpness": true,
     "denoiseLevel": 3,
     "enableDebug": false,
-    "version":2.1,
+    "version": currentVersion,
     "colorBlocks": [
       {
-        "sliders": {"threshold": "60","log": "20","weight": "50" },
+        "sliders": { "threshold": "60", "log": "20", "weight": "50" },
         "numbers": {},
         "color": "#7b7f7e",
         "labelColor": "#000000",
         "enabled": true
       },
       {
-        "sliders": {"threshold": "60","log": "40","weight": "30" },
+        "sliders": { "threshold": "60", "log": "40", "weight": "30" },
         "numbers": {},
         "color": "#d58b8d",
         "labelColor": "#ff0000",
         "enabled": true
       },
       {
-        "sliders": {"threshold": "55","log": "40","weight": "40" },
+        "sliders": { "threshold": "55", "log": "40", "weight": "40" },
         "numbers": {},
         "color": "#9bb76f",
         "labelColor": "#00ff00",
         "enabled": true
       },
       {
-        "sliders": {"threshold": "56","log": "40","weight": "30" },
+        "sliders": { "threshold": "56", "log": "40", "weight": "30" },
         "numbers": {},
         "color": "#94b6e3",
         "labelColor": "#0000ff",
@@ -48,10 +49,10 @@
   const fileNameInput = document.getElementById('configFileNameInput');
   const clearFrameCfgBtn = document.getElementById('clearFrameCfgBtn');
   // 現在のコンフィグデータ
-  let currentConfig = { };
+  let currentConfig = {};
 
   // カラー編集ウィンドウの初期設定
-  const init = function() {
+  const init = function () {
     importBtn.addEventListener('click', () => { fileInput.click(); });
     /** file input アップロード時ファイルを処理 */
     fileInput.addEventListener('change', () => {
@@ -91,10 +92,10 @@
   exportBtn.addEventListener('click', saveConfig);
 
   // ローカルストレージからコンフィグをロード
-  const loadLocalConfig = function() {
+  const loadLocalConfig = function () {
     const localConfig = localStorage.getItem("localConfigData");
     const parsed = JSON.parse(localConfig);
-    if (parsed && parsed.version == 2.1) {
+    if (parsed && parsed.version == currentVersion) {
       try {
         loadConfig(parsed, true);
         showStatus('前回のConfigを復元しました。', 'success', 3000);
@@ -130,18 +131,18 @@
 
   // コンフィグのセーブ (エクスポート)
   function saveConfig() {
-    currentConfig.version = 2;
+    currentConfig.version = currentVersion;
     localStorage.setItem("localConfigData", JSON.stringify(currentConfig));
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig, null, 2));
     const dlAnchorElem = document.createElement('a');
     dlAnchorElem.setAttribute("href", dataStr);
     dlAnchorElem.setAttribute("download", `${currentConfig.fileName}.json`);
-    dlAnchorElem.click(); 
+    dlAnchorElem.click();
     showStatus('Configファイルの保存が完了しました。', 'success', 3000);
   }
 
   // 新しいカラーブロック要素を作成（削除ボタン付き）
-  const createColorBlock = function(initialLabelColor = '#ff0000', initialColor = '#ff0000', initialSlider = { threshold: 0.5, log: 0, weight: 1 }) {
+  const createColorBlock = function (initialLabelColor = '#ff0000', initialColor = '#ff0000', initialSlider = { threshold: 0.5, log: 0, weight: 1 }) {
     const container = document.querySelector('.color-content');
     const colorBlockSize = container.querySelectorAll('.color-block').length;
     if (container.lastElementChild?.id === 'addColorBtn') {
@@ -196,7 +197,7 @@
     `;
 
     container.appendChild(block);
-    
+
     // addColorBtn が必要なら再追加
     let addColorBtn = null;
     if (colorBlockSize < 6) {
@@ -207,13 +208,13 @@
       container.appendChild(addColorBtn);
     }
 
-    const checkbox    = block.querySelector(".color-enable");
-    const deleteBtn   = block.querySelector(".color-delete");
-    const mainPicker  = block.querySelector(".main-picker");
+    const checkbox = block.querySelector(".color-enable");
+    const deleteBtn = block.querySelector(".color-delete");
+    const mainPicker = block.querySelector(".main-picker");
     const labelPicker = block.querySelector(".label-picker");
-    const sliders     = block.querySelectorAll(".color-slider"); // [0]=threshold, [1]=log, [2]=weight
-    const numbers     = block.querySelectorAll(".slider-value"); // [0]=threshold, [1]=log, [2]=weight
-    const buttons     = block.querySelectorAll(".arrow"); // [0/1]=thresholdIn/Dc, [2/3]=logIn/Dc, [4/5]=weightIn/Dc
+    const sliders = block.querySelectorAll(".color-slider"); // [0]=threshold, [1]=log, [2]=weight
+    const numbers = block.querySelectorAll(".slider-value"); // [0]=threshold, [1]=log, [2]=weight
+    const buttons = block.querySelectorAll(".arrow"); // [0/1]=thresholdIn/Dc, [2/3]=logIn/Dc, [4/5]=weightIn/Dc
     const enableDropperBtn = block.querySelector(".color-toggle");
 
     enableDropperBtn.addEventListener('click', (e) => {
@@ -236,7 +237,7 @@
         weight: numbers[2],
       },
     });
-    
+
     addColorBtn.addEventListener('click', () => {
       createColorBlock(); // create by default value
       updateCurrentCfg();
@@ -251,12 +252,12 @@
       console.log(`ラベルカラー更新: ${labelPicker.value}`);
       updateCurrentCfg();
     });
-    
+
     // スライダーと数値インプットを紐づけ
     sliders.forEach((slider, i) => {
       const number = numbers[i];
-      const decreaseBtn = buttons[i*2];
-      const increaseBtn = buttons[i*2+1];
+      const decreaseBtn = buttons[i * 2];
+      const increaseBtn = buttons[i * 2 + 1];
       const step = Number(number.step) || 1;
       // range → number
       slider.addEventListener("change", () => {
@@ -323,12 +324,12 @@
         allColorBlocks[colorBlockSize].remove();
         cfgElm.colorBlocks.splice(colorBlockSize, 1);
         const newCfg = updateCurrentCfg();
-        allColorBlocks.forEach(e=>e.remove());
+        allColorBlocks.forEach(e => e.remove());
         cfgElm.colorBlocks.length = 0;
         loadConfig(newCfg, true);
       }
     });
-    
+
     // チェックボックスのイベント
     checkbox.addEventListener('change', () => {
       updateCurrentCfg();
@@ -340,7 +341,7 @@
 
   /* Create the background picker block and wire its listeners.
     The bg block provides both a color and a labelColor (styled like colorBlock pickers). */
-  const createBgBlock = function(initialBgColor = '#ffffff', initialLabelColor = '#000000') {
+  const createBgBlock = function (initialBgColor = '#ffffff', initialLabelColor = '#000000') {
     const container = document.querySelector('.color-content');
 
     // Remove any existing bg-block if present
@@ -383,20 +384,20 @@
   }
 
   // configを更新・描画
-  const loadConfig = function(cfg, onlyShow = false){
+  const loadConfig = function (cfg, onlyShow = false) {
     currentConfig = cfg;
-    if(onlyShow) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
+    if (onlyShow) applyConfig(cfg, window.FrameManager.getCfgToggleStates());
     updateCfgElm(cfg);
   }
 
   // cfgElmを更新
-  const updateCfgElm = function(cfg){
+  const updateCfgElm = function (cfg) {
     cfgElm.bgPicker.value = cfg.bgColor;
     cfgElm.bgLabelPicker.value = cfg.bgLabelColor;
 
     fileNameInput.value = cfg.fileName;
 
-    if(cfg.colorBlocks.length != cfgElm.colorBlocks.length) {
+    if (cfg.colorBlocks.length != cfgElm.colorBlocks.length) {
       cfg.colorBlocks.forEach((cb, i) => {
         createColorBlock(cb.labelColor, cb.color, { threshold: cb.sliders.threshold, log: cb.sliders.log, weight: cb.sliders.weight });
       });
@@ -416,14 +417,14 @@
   }
 
   // cfgElmでcurrentConfigを更新
-  const updateCurrentCfg = function() {
+  const updateCurrentCfg = function () {
     const cfg = {};
     cfg.bgColor = cfgElm.bgPicker.value;
     cfg.bgLabelColor = cfgElm.bgLabelPicker.value;
 
     cfg.fileName = fileNameInput.value;
 
-    cfg.colorBlocks = Array(cfgElm.colorBlocks.length).fill(0).map((_) => { return {sliders:{}, numbers:{}} });
+    cfg.colorBlocks = Array(cfgElm.colorBlocks.length).fill(0).map((_) => { return { sliders: {}, numbers: {} } });
     cfgElm.colorBlocks.forEach((cb, i) => {
       cfg.colorBlocks[i].color = cb.colorPicker.value;
       cfg.colorBlocks[i].labelColor = cb.labelPicker.value;
@@ -445,21 +446,21 @@
     return cfg;
   }
 
-  const debugMode = function(stat = null){
-    if(stat === null) currentConfig.debugMode = !currentConfig.debugMode;
+  const debugMode = function (stat = null) {
+    if (stat === null) currentConfig.debugMode = !currentConfig.debugMode;
     else currentConfig.debugMode = stat;
     applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
   }
 
-  const applyConfig = function(cfg, cfgToggleStates) {
-    if(cfgToggleStates.some(Boolean)){
+  const applyConfig = function (cfg, cfgToggleStates) {
+    if (cfgToggleStates.some(Boolean)) {
       window.Core.setFrameConfigs(cfg, cfgToggleStates);
     } else {
       window.Core.setGlobalConfig(cfg);
     }
   }
 
-  const culcCfgHash = function(cfg){
+  const culcCfgHash = function (cfg) {
     const copy = JSON.parse(JSON.stringify(cfg));
     delete copy.fileName;
     return JSON.stringify(copy);

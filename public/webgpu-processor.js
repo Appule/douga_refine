@@ -1,4 +1,4 @@
-(function(){
+(function () {
   // --- WebGPU初期化 ---
   let device = null;
   const workgroupSize = 8;
@@ -8,15 +8,15 @@
   // Key is derived from shader code + binding signature to ensure uniqueness for a pipeline layout.
   const pipelineCache = new Map();
 
-  function _makeBindingLayoutEntries(bindings){
-    return bindings.map(({binding, type}) => ({
+  function _makeBindingLayoutEntries(bindings) {
+    return bindings.map(({ binding, type }) => ({
       binding,
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type }
     }));
   }
 
-  function getOrCreatePipeline(shaderCode, bindings){
+  function getOrCreatePipeline(shaderCode, bindings) {
     const key = shaderCode + '|' + JSON.stringify(bindings.map(b => ({ binding: b.binding, type: b.type })));
     if (pipelineCache.has(key)) return pipelineCache.get(key);
 
@@ -55,7 +55,7 @@
     const width = imageData.width;
     const height = imageData.height;
     const pixelCount = width * height;
-  
+
     const uniSize = Math.ceil((8 * 8 + 4) / 4) * 4;
     const buffers = {
       uniform: device.createBuffer({ size: uniSize * 4, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }),
@@ -78,12 +78,12 @@
     };
     const pixelArray = new Uint32Array(imageData.data.buffer);
     device.queue.writeBuffer(buffers.input, 0, pixelArray);
-  
-    if (drawImageData){
+
+    if (drawImageData) {
       const pixelArray2 = new Uint32Array(drawImageData.data.buffer);
       device.queue.writeBuffer(buffers.drawInput, 0, pixelArray2);
     }
-  
+
     // width, height は u32、threshold は f32
     makeUniformsCodes();
     const uniformArray = new ArrayBuffer(uniSize * 4);
@@ -102,14 +102,14 @@
     ];
 
     const base = 4;
-    for(let i = 0; i < sorted.length; ++i){ // 各色毎（黒, 赤, 緑, 青, ...）
+    for (let i = 0; i < sorted.length; ++i) { // 各色毎（黒, 赤, 緑, 青, ...）
       const src = sorted[i];
-    
-      f32View[i*8 + base + 0] = hexToInt32(src.color);
+
+      f32View[i * 8 + base + 0] = hexToInt32(src.color);
       // If the color block is disabled (enabled === false), use the background label color
       const labelInt = (src.enabled === false) ? bgLCol : hexToInt32(src.labelColor);
-      f32View[i*8 + base + 1] = labelInt;
-    
+      f32View[i * 8 + base + 1] = labelInt;
+
       // sliders (frame config now holds absolute values)
       const t = src.sliders.threshold * 0.01;
       const l = src.sliders.log * 0.1;
@@ -118,10 +118,10 @@
       f32View[i * 8 + base + 3] = l;
       f32View[i * 8 + base + 4] = w;
     }
-    
+
     const enableSharpness = cfg.enableSharpness;
     const denoiseLevel = cfg.denoiseLevel;
-    const enableDebug   = cfg.enableDebug;
+    const enableDebug = cfg.enableDebug;
 
     device.queue.writeBuffer(buffers.uniform, 0, uniformArray);
 
@@ -221,7 +221,7 @@
         { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
         { name: 'binary', binding: 2, type: 'storage' },
       ]);
-    } else if(denoiseLevel === 2) {
+    } else if (denoiseLevel === 2) {
       pushStep(steps, 'Denoise2x2', uniformsCode + denoise2x2ShaderCode, [
         { name: 'uniform', binding: 0, type: 'uniform' },
         { name: 'denoiseBuffer', binding: 1, type: 'read-only-storage' },
@@ -254,7 +254,7 @@
       const encoder = await runShader(step.code, buffers, step.bindings, width, height);
       device.queue.submit([encoder.finish()]);
     }
-    
+
     // モードと対応する readback バッファを定義（cfg.enableDebug によって切り替え）
     const enableDebug = (typeof cfg.enableDebug !== 'undefined') ? cfg.enableDebug : false;
     const modeToBuffer = enableDebug ? {
@@ -264,7 +264,7 @@
     } : {
       processed: "readback",
     };
-  
+
     const encoder = device.createCommandEncoder();
     // 処理結果を readback バッファにコピー（debug が無効なら output のみコピー）
     const copyMap = [];
@@ -273,14 +273,14 @@
       copyMap.push(["logOut", "readbackLoG"]);
     }
     copyMap.push(["output", "readback"]);
-  
+
     for (const [src, dst] of copyMap) {
       encoder.copyBufferToBuffer(buffers[src], 0, buffers[dst], 0, width * height * 4);
     }
     device.queue.submit([encoder.finish()]);
 
     const processedData = {};
-    for(const key of Object.keys(modeToBuffer)){
+    for (const key of Object.keys(modeToBuffer)) {
       const bufferKey = modeToBuffer[key];
       const buffer = buffers[bufferKey];
       // 読み込み
@@ -297,7 +297,7 @@
     }
 
     window.Core.setProcessedData(processedData, idx);
-    
+
     showStatus('処理が完了しました', 'success', 3000);
   }
 

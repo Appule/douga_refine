@@ -1,7 +1,7 @@
 // --- WebGPUコンピュートシェーダーコード ---
 let uniformsCode = '';
 
-function makeUniformsCodes(){
+function makeUniformsCodes() {
   uniformsCode = `
     struct ColorUniform {
       col: f32,

@@ -18,13 +18,19 @@
   let dirHandleCell;
   let traceDirEntries = [];
   let cellDirEntries = [];
+
   // window-global
   let fileName = '';
   let fileExt = '';
 
+  // window-config
+  let currentConfig = {};
+
+  // window-frames
+
   //// HTML要素
   // ページ設定
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
 
     const topContainer = document.querySelector('.top-container');
     const mainEditorPanel = document.querySelector('.main-editor-panel');
@@ -126,6 +132,11 @@
       document.body.style.cursor = 'default';
       document.body.style.userSelect = '';
     });
+
+    const response = await fetch('./_config/default.json');
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const defaultConfigFromFile = await response.json();
+
   });
 
   // 画像データ setter/getter

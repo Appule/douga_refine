@@ -11,6 +11,9 @@ const port = 3000;
 const publicPath = path.join(process.cwd(), 'public');
 app.use(express.static(publicPath));
 
+const configPath = path.join(process.cwd(), '_config');
+app.use('/_config', express.static(configPath));
+
 let shutdownTimer = null;
 const SHUTDOWN_DELAY_MS = 1000;
 

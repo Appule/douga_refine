@@ -1,4 +1,4 @@
-(function() {
+(function () {
   // ファイル操作
   async function loadTIFF(file) {
     // Return ImageData for a TIFF file (caller will handle canvas drawing / caching)
@@ -19,12 +19,12 @@
     const view = new DataView(buffer);
 
     // --- ヘッダ解析 ---
-    const idLength   = view.getUint8(0);
-    const colorMap   = view.getUint8(1);
-    const imageType  = view.getUint8(2);   // 2 = 非圧縮RGB, 10 = RLE圧縮RGB
-    const width      = view.getUint16(12, true);
-    const height     = view.getUint16(14, true);
-    const depth      = view.getUint8(16);  // 24 or 32
+    const idLength = view.getUint8(0);
+    const colorMap = view.getUint8(1);
+    const imageType = view.getUint8(2);   // 2 = 非圧縮RGB, 10 = RLE圧縮RGB
+    const width = view.getUint16(12, true);
+    const height = view.getUint16(14, true);
+    const depth = view.getUint8(16);  // 24 or 32
     const descriptor = view.getUint8(17);
 
     if (imageType !== 2 && imageType !== 10) {
@@ -110,7 +110,7 @@
       // Fallback to Image element
       return await new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
           const canvas = document.createElement('canvas');
           canvas.width = img.naturalWidth;
           canvas.height = img.naturalHeight;
@@ -123,7 +123,7 @@
             reject(e);
           }
         };
-        img.onerror = function(e){
+        img.onerror = function (e) {
           reject(new Error('Failed to load image'));
         };
         img.src = URL.createObjectURL(file);
