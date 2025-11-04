@@ -156,45 +156,6 @@
       }
     }, { passive: false });
 
-
-    // Keyboard shortcuts: zoom and quick-fill alpha
-    document.addEventListener('keydown', (e) => {
-      // Ignore when typing in inputs/textareas
-      const activeTag = document.activeElement?.tagName;
-      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
-
-      const key = e.key;
-
-      // Zoom: 'z' (zoom in), 'Shift+z' (zoom out)
-      if (key.toLowerCase() === 'z' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        changeZoomStep(1, mouseX, mouseY);
-        return;
-      }
-      if (key.toLowerCase() === 'x' && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        changeZoomStep(-1, mouseX, mouseY);
-        return;
-      }
-
-      // Quick alpha set for fill: keys 1..9 => 0.1..0.9, 0 => 1.0
-      // Only respond when not using modifier keys (so shortcuts like Ctrl+1 are preserved)
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (/^[0-9]$/.test(key)) {
-          // Only apply when the editor is in a lasso-able cursor mode (highTh / lowTh)
-          const cmode = window.Core.getCursorMode();
-          if (cmode === 'highTh' || cmode === 'lowTh') {
-            e.preventDefault();
-            const n = key === '0' ? 10 : parseInt(key, 10);
-            fillAlpha = Math.max(0.1, Math.min(1.0, n / 10));
-            if (typeof showStatus === 'function') {
-              showStatus(`Fill alpha set to ${fillAlpha.toFixed(1)}`, 'info', 1000);
-            }
-            return;
-          }
-        }
-      }
-    });
   }
 
   // 画像アップロード時
@@ -331,13 +292,19 @@
     updateTransform();
   }
 
-  function changeZoomStep(delta, centerX = null, centerY = null) {
+  function changeZoomStep(delta) {
+    const containerRect = editorContent.getBoundingClientRect();
+    const centerX = mouseX - containerRect.left;
+    const centerY = mouseY - containerRect.top;
+
     const idx = findClosestZoomIndex(zoom);
     let nextIdx = idx + delta;
     if (nextIdx < 0) nextIdx = 0;
     if (nextIdx >= zoomLevels.length) nextIdx = zoomLevels.length - 1;
     const newZoom = zoomLevels[nextIdx];
     setZoom(newZoom, centerX, centerY);
+
+    updateTransform();
   }
 
   function resetCanvasOffset() {
@@ -489,6 +456,14 @@
   const hideDrawCanvas = function () { drawCanvas.hidden = true; }
   const showDrawCanvas = function () { drawCanvas.hidden = false; }
 
+  const setFillAlphaFromKey = function (key) {
+    const n = key === '0' ? 10 : parseInt(key, 10);
+    fillAlpha = Math.max(0.1, Math.min(1.0, n / 10));
+    if (typeof showStatus === 'function') {
+      showStatus(`Fill alpha set to ${fillAlpha.toFixed(1)}`, 'info', 1000);
+    }
+  }
+
   //// 共有オブジェクト
   window.CanvasEditor = {
     init,
@@ -497,6 +472,8 @@
     hideDrawCanvas,
     showDrawCanvas,
     uploadByDirHandle,
+    changeZoomStep,
+    setFillAlphaFromKey,
   }
 
 })();

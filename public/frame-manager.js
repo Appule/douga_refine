@@ -186,55 +186,33 @@
     cfgIsPressed = false;
   });
 
-  // Keyboard shortcuts: frames
-  document.addEventListener('keydown', (e) => {
-    // Ignore when typing in inputs/textareas
-    const activeTag = document.activeElement?.tagName;
-    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+  const changeFrame = function (direction) {
+    if (!frameBtns.length) return;
 
-    const key = e.key;
-    const isAlt = e.altKey;
+    let nextIdx = window.Core.getFrameIndex();
 
-    // Frame decrement: '<' or ','  (support both '<' and ',' for different layouts)
-    if ((key === '<' || key === ',') && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault();
-      if (isAlt) {
-        // Go to first frame
-        if (frameBtns.length) {
-          window.Core.setFrameIndex(0);
-          accentFrmBtn(window.Core.getFrameIndex());
-        }
-      } else {
-        // Decrement current frame
-        if (frameBtns.length) {
-          let nextIdx = Math.max(0, window.Core.getFrameIndex() - 1);
-          window.Core.setFrameIndex(nextIdx);
-          accentFrmBtn(nextIdx);
-        }
-      }
-      return;
+    switch (direction) {
+      case 'next':
+        nextIdx = Math.min(frameBtns.length - 1, window.Core.getFrameIndex() + 1);
+        break;
+      case 'prev':
+        nextIdx = Math.max(0, window.Core.getFrameIndex() - 1);
+        break;
+      case 'first':
+        nextIdx = 0;
+        break;
+      case 'last':
+        nextIdx = frameBtns.length - 1;
+        break;
+      default:
+        return;
     }
 
-    // Frame increment: '>' or '.'
-    if ((key === '>' || key === '.') && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault();
-      if (isAlt) {
-        // Go to last frame
-        if (frameBtns.length) {
-          window.Core.setFrameIndex(frameBtns.length - 1);
-          accentFrmBtn(window.Core.getFrameIndex());
-        }
-      } else {
-        // Increment current frame
-        if (frameBtns.length) {
-          let nextIdx = Math.min(frameBtns.length - 1, window.Core.getFrameIndex() + 1);
-          window.Core.setFrameIndex(nextIdx);
-          accentFrmBtn(nextIdx);
-        }
-      }
-      return;
+    if (nextIdx !== window.Core.getFrameIndex()) {
+      window.Core.setFrameIndex(nextIdx);
+      accentFrmBtn(nextIdx);
     }
-  });
+  }
 
   const updateFrameButtons = function () {
     let allProcessed = true;
@@ -285,6 +263,7 @@
     getCfgToggleStates,
     drawGear,
     clearGear,
+    changeFrame,
   }
 
 })();

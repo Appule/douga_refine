@@ -15,6 +15,16 @@
   let frameConfigs = []; // フレームコンフィグ
   let dirHandle;
   let dirHandleTrace;
+
+  // キーコンフィグ
+  const keyConfig = {
+    zoomIn: 'z',
+    zoomOut: 'x',
+    toggleShowMode: 'q',
+    prevFrame: ',',
+    nextFrame: '.',
+  };
+
   let dirHandleCell;
   let traceDirEntries = [];
   let cellDirEntries = [];
@@ -273,19 +283,6 @@
     prepareAndShowImage();
   }
   const getFrameIndex = function () { return frameIndex; }
-
-  document.addEventListener('keydown', (e) => {
-    const activeTag = document.activeElement?.tagName;
-    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
-
-    const key = e.key;
-
-    if (key.toLowerCase() === 'q' && !e.ctrlKey && !e.metaKey) {
-      e.preventDefault();
-      setShowMode((getShowMode() === 'processed') ? 'original' : 'processed');
-      return;
-    }
-  });
 
   // コンフィグ setter/getter
   const setGlobalConfig = function (cfg) {
@@ -589,6 +586,65 @@
     setRefDirectory,
     setSavDirectory,
   }
+
+  // --- キーボードショートカット ---
+  document.addEventListener('keydown', (e) => {
+    // Ignore when typing in inputs/textareas
+    const activeTag = document.activeElement?.tagName;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+    const key = e.key;
+    const isAlt = e.altKey;
+
+    // 修飾キーが押されている場合は無視 (Altを除く)
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      // ただし、Frame-manager.jsの 'Shift+<' or 'Shift+>' は '<' or '>' として扱われるため、ここでは無視しない
+      if (!(key === '<' || key === '>')) {
+        return;
+      }
+    }
+
+    // ズーム
+    if (key.toLowerCase() === keyConfig.zoomIn) {
+      e.preventDefault();
+      window.CanvasEditor.changeZoomStep(1);
+      return;
+    }
+    if (key.toLowerCase() === keyConfig.zoomOut) {
+      e.preventDefault();
+      window.CanvasEditor.changeZoomStep(-1);
+      return;
+    }
+
+    // 表示モード切替
+    if (key.toLowerCase() === keyConfig.toggleShowMode) {
+      e.preventDefault();
+      setShowMode((getShowMode() === 'processed') ? 'original' : 'processed');
+      return;
+    }
+
+    // フレーム移動
+    if (key === keyConfig.prevFrame || key === '<') {
+      e.preventDefault();
+      window.FrameManager.changeFrame(isAlt ? 'first' : 'prev');
+      return;
+    }
+    if (key === keyConfig.nextFrame || key === '>') {
+      e.preventDefault();
+      window.FrameManager.changeFrame(isAlt ? 'last' : 'next');
+      return;
+    }
+
+    // 投げ縄のアルファ値変更
+    if (/^[0-9]$/.test(key)) {
+      const cmode = getCursorMode();
+      if (cmode === 'highTh' || cmode === 'lowTh') {
+        e.preventDefault();
+        window.CanvasEditor.setFillAlphaFromKey(key);
+        return;
+      }
+    }
+  });
 
   window.ConfigEditor.init();
   window.CanvasEditor.init();
