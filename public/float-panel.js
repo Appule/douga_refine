@@ -7,13 +7,11 @@
   let fileExtList = null;
   let selectCutFolderCallBack = () => { };
   let refDropdownCallBack = () => { };
-  let savDropdownCallBack = () => { };
   let fileNameInputCallBack = () => { };
   let fileExtListCallBack = () => { };
   let saveAllBtnCallBack = () => { };
   const setSelectCutFolderCallBack = function (func) { selectCutFolderCallBack = func; };
   const setRefDropdownCallBack = function (func) { refDropdownCallBack = func; };
-  const setSavDropdownCallBack = function (func) { savDropdownCallBack = func; };
   const setFileNameInputCallBack = function (func) { fileNameInputCallBack = func; };
   const setFileExtListCallBack = function (func) { fileExtListCallBack = func; };
   const setSaveAllBtnCallBack = function (func) { saveAllBtnCallBack = func; };
@@ -41,10 +39,8 @@
     gWin.addElement(createButton('<i class="fa-solid fa-folder-open"></i> カットフォルダ', () => { selectCutFolderCallBack() }, 'rgba(23, 135, 255, 1)'));
     {
       refDropdown = createDropdown('参照', [], (e) => { refDropdownCallBack(e); }, 'rgba(23, 135, 255, 1)');
-      savDropdown = createDropdown('保存先', [], (e) => { savDropdownCallBack(e); }, 'rgba(23, 135, 255, 1)');
-      const arrowBtn = createButton('⇒', () => { }, 'rgba(23, 135, 255, 1)');
-      const wrapper = createWrapper([refDropdown, arrowBtn, savDropdown], ['40%', '20%', '40%']);
-      gWin.addElement(wrapper);
+      refDropdown.style.width = '100%';
+      gWin.addElement(refDropdown);
     }
     {
       fileNameInput = createTextInput('保存名', (e) => { fileNameInputCallBack(e); });
@@ -64,15 +60,23 @@
       while (selectElement.firstChild) {
         selectElement.removeChild(selectElement.firstChild);
       }
-      // 2. 新しい option を追加
+      // 2. ダミーのoptionを追加
+      const dummyOption = document.createElement('option');
+      dummyOption.textContent = '参照フォルダを選択';
+      dummyOption.value = ''; // valueを空にしておく
+      dummyOption.disabled = true;
+      dummyOption.selected = true;
+      selectElement.appendChild(dummyOption);
+
+      // 3. 新しい option を追加
       optionLabels.forEach((label) => {
         const option = document.createElement('option');
         option.textContent = label;
+        option.value = label;
         selectElement.appendChild(option);
       });
     }
     const setRefDropdown = (labels) => { updateSelectOptions(refDropdown, labels) };
-    const setSavDropdown = (labels) => { updateSelectOptions(savDropdown, labels) };
 
 
     //// 表示切替
@@ -104,12 +108,10 @@
       getCfgStats,
       setSelectCutFolderCallBack,
       setRefDropdownCallBack,
-      setSavDropdownCallBack,
       setFileNameInputCallBack,
       setFileExtListCallBack,
       setSaveAllBtnCallBack,
       setRefDropdown,
-      setSavDropdown,
       setShowInCallBack,
       setShowOutCallBack,
       setSharpnessBtnCallBack,

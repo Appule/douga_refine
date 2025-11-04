@@ -490,12 +490,7 @@
         }
       }
 
-      dirHandleTrace = traceDirEntries[0].handle;
-      dirHandleCell = cellDirEntries[0].handle;
       window.FloatPanel.setRefDropdown(traceDirEntries.map(e => e.name));
-      window.FloatPanel.setSavDropdown(cellDirEntries.map(e => e.name));
-
-      window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
     }
 
 
@@ -516,12 +511,23 @@
   }
 
   const setRefDirectory = function (e) {
-    dirHandleTrace = traceDirEntries.find(ent => ent.name === e).handle;
-    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
-  }
+    if (!e) return; // ダミーの選択肢が選ばれた場合は何もしない
 
-  const setSavDirectory = function (e) {
-    dirHandleCell = cellDirEntries.find(ent => ent.name === e).handle;
+    dirHandleTrace = traceDirEntries.find(ent => ent.name === e).handle;
+
+    // 参照フォルダ名から保存先フォルダ名を作成 (例: '_A' -> 'A')
+    const saveDirName = e.startsWith('_') ? e.substring(1) : e;
+    const saveDirEntry = cellDirEntries.find(ent => ent.name === saveDirName);
+
+    if (saveDirEntry) {
+      dirHandleCell = saveDirEntry.handle;
+    } else {
+      console.warn(`保存先フォルダ "${saveDirName}" が見つかりません。`);
+      // TODO: フォルダが見つからなかった場合の例外処理をここに追加
+      // 例えば、ユーザーにフォルダ作成を促す、デフォルトの保存場所を使用するなど。
+    }
+
+    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
   }
 
   const setFileName = function (e) {
@@ -535,7 +541,6 @@
   // float-panel.js Set Callback Function
   window.FloatPanel.setSelectCutFolderCallBack(setDirHandle);
   window.FloatPanel.setRefDropdownCallBack(setRefDirectory);
-  window.FloatPanel.setSavDropdownCallBack(setSavDirectory);
   window.FloatPanel.setFileNameInputCallBack(setFileName);
   window.FloatPanel.setFileExtListCallBack(setFileExt);
   window.FloatPanel.setSaveAllBtnCallBack(saveAllImages);
@@ -583,8 +588,6 @@
     saveImage,
     setDirHandle,
     existDirHandle,
-    setRefDirectory,
-    setSavDirectory,
   }
 
   // --- キーボードショートカット ---
