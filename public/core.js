@@ -462,6 +462,7 @@
     fileExt = e;
   }
 
+  // float-panel.js Set Callback Function
   window.FloatPanel.setSelectCutFolderCallBack(setDirHandle);
   window.FloatPanel.setRefDropdownCallBack(setRefDirectory);
   window.FloatPanel.setSavDropdownCallBack(setSavDirectory);
@@ -474,9 +475,16 @@
 
   window.FloatPanel.setSharpnessBtnCallBack(() => { });
   window.FloatPanel.setDenoiseLevelListCallBack(() => { });
-  window.FloatPanel.setCursorModeListCallBack(() => { });
+  window.FloatPanel.setCursorModeListCallBack((e) => { setCursorMode(e); });
 
   window.ConfigEditor.setClearConfigBtnCallBack(clearFrameCfg);
+  window.ConfigEditor.setApplyConfigCallback((cfg, cfgToggleStates) => {
+    if (cfgToggleStates.some(Boolean)) {
+      setFrameConfigs(cfg, cfgToggleStates);
+    } else {
+      setGlobalConfig(cfg);
+    }
+  });
 
   window.Core = {
     // 画像データ

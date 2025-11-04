@@ -437,12 +437,12 @@
     applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
   }
 
+  let applyConfigCallback = function (cfg, cfgToggleStates) { };
   const applyConfig = function (cfg, cfgToggleStates) {
-    if (cfgToggleStates.some(Boolean)) {
-      window.Core.setFrameConfigs(cfg, cfgToggleStates);
-    } else {
-      window.Core.setGlobalConfig(cfg);
-    }
+    applyConfigCallback(cfg, cfgToggleStates);
+  }
+  const setApplyConfigCallback = function (func) {
+    applyConfigCallback = func;
   }
 
   const culcCfgHash = function (cfg) {
@@ -458,6 +458,7 @@
     updateCurrentCfg,
     debugMode,
     setClearConfigBtnCallBack,
+    setApplyConfigCallback,
   }
 
 })();

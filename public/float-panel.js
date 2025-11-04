@@ -84,7 +84,7 @@
     sharpnessBtn = createToggle('シャープネス', true, () => window.ConfigEditor.updateCurrentCfg(), 'rgba(255, 104, 104, 1)', 'rgba(114, 114, 114, 1)');
     denoiseLevelList = createDropdown('デノイズ強度', ['3', '2', '1', '0'], () => window.ConfigEditor.updateCurrentCfg(), 'rgba(82, 82, 82, 1)');
     cursorModeList = createDropdown('カーソル', [{ text: 'デフォルト', value: 'camera' }, { text: '閾値上げ', value: 'highTh' }, { text: '閾値下げ', value: 'lowTh' }],
-      (e) => { window.Core.setCursorMode(e); }, 'rgba(89, 98, 219, 1)');
+      (e) => { cursorModeListCallBack(e); }, 'rgba(89, 98, 219, 1)');
     gWin.addElement(sharpnessBtn);
     gWin.addElement(denoiseLevelList);
     gWin.addElement(cursorModeList);
