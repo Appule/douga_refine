@@ -18,6 +18,7 @@
   //// 表示切替
   let showInCallBack = () => { };
   let showOutCallBack = () => { };
+  let showRefCallBack = () => { };
   //// 出力の調整
   let sharpnessBtn = null;
   let denoiseLevelList = null;
@@ -82,9 +83,11 @@
     //// 表示切替
     gWin.addElement(createLabel('表示切替'));
     gWin.addElement(createButton('<i class="fa-solid fa-image"></i> 入力画像', () => { showInCallBack(); }, 'rgb(0, 185, 40)'));
+    gWin.addElement(createButton('<i class="fa-solid fa-images"></i> 参照画像', () => { showRefCallBack(); }, 'rgb(0, 185, 40)'));
     gWin.addElement(createButton('<i class="fa-regular fa-image"></i> 出力画像', () => { showOutCallBack(); }, 'rgb(0, 185, 40)'));
     const setShowInCallBack = function (func) { showInCallBack = func; }
     const setShowOutCallBack = function (func) { showOutCallBack = func; }
+    const setShowRefCallBack = function (func) { showRefCallBack = func; }
 
     //// 出力の調整
     gWin.addElement(createLabel('出力の調整'));
@@ -114,6 +117,7 @@
       setRefDropdown,
       setShowInCallBack,
       setShowOutCallBack,
+      setShowRefCallBack,
       setSharpnessBtnCallBack,
       setDenoiseLevelListCallBack,
       setCursorModeListCallBack,

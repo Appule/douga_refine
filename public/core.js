@@ -6,6 +6,7 @@
   let uploadedImages = []; // アップロードした画像
   let processedImages = []; // 処理後画像の保持  [ { pressure:null, log:null, processed:null, hash:0, dhash:0, saved:false }, ... ]
   let drawImages = []; // マーキング画像
+  let referenceImages = []; // 参照画像
   // モード
   let showMode = 'processed'; // 現在の描画モード enableSharpness: true, denoiseLevel: 3, enableDebug: false
   let cursorMode = 'camera'; // 現在のカーソルモード
@@ -227,6 +228,7 @@
     uploadedImages = new Array(fis.length);
     processedImages = new Array(fis.length).fill(0).map((_) => { return { pressure: null, log: null, processed: null, hash: '', dhash: '', saved: 0 } });
     drawImages = new Array(fis.length);
+    referenceImages = new Array(fis.length);
     frameConfigs = new Array(fis.length).fill(0);
     fileInfos = new Array(fis.length);
     fis.forEach((fi, i) => {
@@ -249,6 +251,13 @@
     processedImages[idx].pressure = data.pressure;
     processedImages[idx].log = data.log;
     processedImages[idx].processed = data.processed;
+  }
+
+  const setReferenceImage = function (img, idx = frameIndex) {
+    referenceImages[idx] = img;
+  }
+  const getReferenceImage = function (idx = frameIndex) {
+    return referenceImages[idx];
   }
   const getProcessedData = function (idx = frameIndex) {
     return processedImages[idx];
@@ -323,6 +332,10 @@
 
     if (showMode === 'original') {
       window.CanvasEditor.showImg(uploadedImages[i]);
+      return;
+    }
+    if (showMode === 'reference' && referenceImages[i]) {
+      window.CanvasEditor.showImg(referenceImages[i]);
       return;
     }
 
@@ -510,14 +523,16 @@
     return true;
   }
 
-  const setRefDirectory = function (e) {
+  const setRefDirectory = async function (e) {
     if (!e) return; // ダミーの選択肢が選ばれた場合は何もしない
 
     dirHandleTrace = traceDirEntries.find(ent => ent.name === e).handle;
 
     // 参照フォルダ名から保存先フォルダ名を作成 (例: '_A' -> 'A')
     const saveDirName = e.startsWith('_') ? e.substring(1) : e;
+    const refDirName = saveDirName + ' - コピー';
     const saveDirEntry = cellDirEntries.find(ent => ent.name === saveDirName);
+    const refDirEntry = cellDirEntries.find(ent => ent.name === refDirName);
 
     if (saveDirEntry) {
       dirHandleCell = saveDirEntry.handle;
@@ -525,9 +540,45 @@
       console.warn(`保存先フォルダ "${saveDirName}" が見つかりません。`);
       // TODO: フォルダが見つからなかった場合の例外処理をここに追加
       // 例えば、ユーザーにフォルダ作成を促す、デフォルトの保存場所を使用するなど。
+      dirHandleCell = null;
     }
 
     window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
+
+    // 参照画像フォルダの読み込み
+    if (refDirEntry) {
+      loadReferenceImages(refDirEntry.handle);
+    } else {
+      // 参照画像がない場合はクリア
+      referenceImages.fill(null);
+    }
+  }
+
+  async function loadReferenceImages(dirHandle) {
+    showStatus('参照画像を読み込んでいます...', 'info');
+    try {
+      debugger
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind !== 'file') continue;
+
+        const file = await entry.getFile();
+        const m = file.name.match(/(\d{4})/);
+        if (!m) continue;
+
+        const num = parseInt(m[1], 10);
+        const targetIndex = fileInfos.findIndex(info => info.num === num);
+
+        if (targetIndex !== -1) {
+          const ext = file.name.split('.').pop().toLowerCase();
+          const imgData = await (ext === 'tga' ? window.ImageLoader.loadTGA(file) : (ext === 'tif' || ext === 'tiff' ? window.ImageLoader.loadTIFF(file) : window.ImageLoader.loadIMG(file)));
+          setReferenceImage(imgData, targetIndex);
+        }
+      }
+      showStatus('参照画像の読み込みが完了しました。', 'success', 3000);
+    } catch (err) {
+      console.error('参照画像の読み込みに失敗しました:', err);
+      showStatus('参照画像の読み込みに失敗しました。', 'error', 3000);
+    }
   }
 
   const setFileName = function (e) {
@@ -546,6 +597,7 @@
   window.FloatPanel.setSaveAllBtnCallBack(saveAllImages);
 
   window.FloatPanel.setShowInCallBack(() => { setShowMode('original'); });
+  window.FloatPanel.setShowRefCallBack(() => { setShowMode('reference'); });
   window.FloatPanel.setShowOutCallBack(() => { setShowMode('processed'); });
 
   window.FloatPanel.setSharpnessBtnCallBack(() => { });
@@ -568,6 +620,8 @@
     getUploadedImage,
     setProcessedData,
     getProcessedData,
+    setReferenceImage,
+    getReferenceImage,
     setDrawImage,
     // モード
     setShowMode,
