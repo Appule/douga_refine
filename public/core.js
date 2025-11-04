@@ -51,6 +51,29 @@
     const minWidth = 100;
     const minHeight = 100;
 
+    // パネルサイズを復元
+    function loadPanelSizes() {
+      const savedSizes = localStorage.getItem('panelSizes');
+      if (savedSizes) {
+        const panelSizes = JSON.parse(savedSizes);
+        if (panelSizes.mainEditorPanelWidth) mainEditorPanel.style.width = panelSizes.mainEditorPanelWidth;
+        if (panelSizes.frameMenuPanelWidth) frameMenuPanel.style.width = panelSizes.frameMenuPanelWidth;
+        if (panelSizes.topContainerHeight) topContainer.style.height = panelSizes.topContainerHeight;
+        if (panelSizes.colorEditorPanelHeight) colorEditorPanel.style.height = panelSizes.colorEditorPanelHeight;
+      }
+    }
+
+    // パネルサイズを保存
+    function savePanelSizes() {
+      const panelSizes = {
+        mainEditorPanelWidth: mainEditorPanel.style.width,
+        frameMenuPanelWidth: frameMenuPanel.style.width,
+        topContainerHeight: topContainer.style.height,
+        colorEditorPanelHeight: colorEditorPanel.style.height,
+      };
+      localStorage.setItem('panelSizes', JSON.stringify(panelSizes));
+    }
+
     // 垂直リサイザー（V）
     resizerV.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -123,6 +146,7 @@
         isResizingH = false;
         document.body.style.cursor = 'default';
         document.body.style.userSelect = '';
+        savePanelSizes(); // リサイズ完了時にサイズを保存
       }
     });
 
@@ -133,10 +157,59 @@
       document.body.style.userSelect = '';
     });
 
+    window.addEventListener('resize', () => {
+      // ウィンドウリサイズ時に垂直パネルの幅を再計算する
+      const totalWidth = topContainer.offsetWidth;
+      const mainWidth = mainEditorPanel.offsetWidth;
+      const frameWidth = frameMenuPanel.offsetWidth;
+
+      // 現在の幅の比率を計算して適用
+      const mainPercentage = (mainWidth / (mainWidth + frameWidth)) * 100;
+      const framePercentage = 100 - mainPercentage;
+      mainEditorPanel.style.width = `${mainPercentage}%`;
+      frameMenuPanel.style.width = `${framePercentage}%`;
+
+      // ウィンドウリサイズ時に水平パネルの高さを再計算する
+      const totalHeight = document.querySelector('.container').offsetHeight;
+      const topHeight = topContainer.offsetHeight;
+      const colorHeight = colorEditorPanel.offsetHeight;
+
+      // 現在の高さの比率を計算して適用
+      const topPercentage = (topHeight / (topHeight + colorHeight)) * 100;
+      const colorPercentage = 100 - topPercentage;
+      topContainer.style.height = `${topPercentage}%`;
+      colorEditorPanel.style.height = `${colorPercentage}%`;
+    });
+
+
+
     const response = await fetch('./_config/default.json');
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const defaultConfigFromFile = await response.json();
 
+    loadPanelSizes(); // ページ読み込み時にサイズを復元
+
+    const togglePanelsBtn = document.getElementById('togglePanelsBtn');
+    let panelsVisible = true;
+    togglePanelsBtn.addEventListener('click', () => {
+      panelsVisible = !panelsVisible;
+      if (panelsVisible) {
+        frameMenuPanel.style.display = 'flex';
+        colorEditorPanel.style.display = 'flex';
+        resizerV.style.display = 'block';
+        resizerH.style.display = 'block';
+        mainEditorPanel.style.width = '80%'; // 元の幅に戻す
+        topContainer.style.height = '80%'; // 元の高さに戻す
+        loadPanelSizes();
+      } else {
+        frameMenuPanel.style.display = 'none';
+        colorEditorPanel.style.display = 'none';
+        resizerV.style.display = 'none';
+        resizerH.style.display = 'none';
+        mainEditorPanel.style.width = '100%';
+        topContainer.style.height = '100%';
+      }
+    });
   });
 
   // 画像データ setter/getter

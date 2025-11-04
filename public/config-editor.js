@@ -437,7 +437,7 @@
     applyConfig(currentConfig, window.FrameManager.getCfgToggleStates());
   }
 
-  let applyConfigCallback = function (cfg, cfgToggleStates) { };
+  let applyConfigCallback = () => { };
   const applyConfig = function (cfg, cfgToggleStates) {
     applyConfigCallback(cfg, cfgToggleStates);
   }

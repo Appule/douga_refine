@@ -11,6 +11,12 @@
   let fileNameInputCallBack = () => { };
   let fileExtListCallBack = () => { };
   let saveAllBtnCallBack = () => { };
+  const setSelectCutFolderCallBack = function (func) { selectCutFolderCallBack = func; };
+  const setRefDropdownCallBack = function (func) { refDropdownCallBack = func; };
+  const setSavDropdownCallBack = function (func) { savDropdownCallBack = func; };
+  const setFileNameInputCallBack = function (func) { fileNameInputCallBack = func; };
+  const setFileExtListCallBack = function (func) { fileExtListCallBack = func; };
+  const setSaveAllBtnCallBack = function (func) { saveAllBtnCallBack = func; };
   //// 表示切替
   let showInCallBack = () => { };
   let showOutCallBack = () => { };
@@ -21,6 +27,9 @@
   let sharpnessBtnCallBack = () => { };
   let denoiseLevelListCallBack = () => { };
   let cursorModeListCallBack = () => { };
+  const setSharpnessBtnCallBack = function (func) { sharpnessBtnCallBack = func; };
+  const setDenoiseLevelListCallBack = function (func) { denoiseLevelListCallBack = func; };
+  const setCursorModeListCallBack = function (func) { cursorModeListCallBack = func; };
 
   // フロートウィンドウの初期設定
   const init = function () {
@@ -50,7 +59,6 @@
     gWin.addElement(createButton('<i class="fas fa-file-download"></i> 全て保存', () => { saveAllBtnCallBack(); }, 'rgba(23, 135, 255, 1)'));
 
     // Callback Functionの設定
-    const setSelectCutFolderCallBack = function (func) { selectCutFolderCallBack = func; }
     function updateSelectOptions(selectElement, optionLabels) {
       // 1. 既存の option をすべて削除
       while (selectElement.firstChild) {
@@ -65,11 +73,6 @@
     }
     const setRefDropdown = (labels) => { updateSelectOptions(refDropdown, labels) };
     const setSavDropdown = (labels) => { updateSelectOptions(savDropdown, labels) };
-    const setRefDropdownCallBack = function (func) { refDropdownCallBack = func; }
-    const setSavDropdownCallBack = function (func) { savDropdownCallBack = func; }
-    const setFileNameInputCallBack = function (func) { fileNameInputCallBack = func; }
-    const setFileExtListCallBack = function (func) { fileExtListCallBack = func; }
-    const setSaveAllBtnCallBack = function (func) { saveAllBtnCallBack = func; }
 
 
     //// 表示切替
@@ -88,9 +91,6 @@
     gWin.addElement(sharpnessBtn);
     gWin.addElement(denoiseLevelList);
     gWin.addElement(cursorModeList);
-    const setSharpnessBtnCallBack = function (func) { sharpnessBtnCallBack = func; }
-    const setDenoiseLevelListCallBack = function (func) { denoiseLevelListCallBack = func; }
-    const setCursorModeListCallBack = function (func) { cursorModeListCallBack = func; }
 
     const getFileName = function () { return fileNameInput.value.trim(); }
     const getFileExt = function () { return fileExtList.value; }

@@ -18,7 +18,7 @@ let shutdownTimer = null;
 const SHUTDOWN_DELAY_MS = 1000;
 
 wss.on('connection', (ws) => {
-  console.log('🟢 WebSocket connected');
+  console.log('WebSocket connected');
 
   if (shutdownTimer) {
     clearTimeout(shutdownTimer);
@@ -27,7 +27,7 @@ wss.on('connection', (ws) => {
   }
 
   ws.on('close', () => {
-    console.log('🔴 WebSocket disconnected');
+    console.log('WebSocket disconnected');
     if (wss.clients.size === 0) {
       shutdownTimer = setTimeout(() => {
         shutdownTimer = null;
