@@ -541,8 +541,7 @@ const denoise1x1ShaderCode = /* glsl */`
     }
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
-    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
-    for (var i: u32 = 0u; i < colorNum+1; i++) {
+    for (var i: u32 = 0u; i < 9u; i++) {
       if (counts[i] > maxCount) {
         maxCount = counts[i];
         maxIdx = i;
@@ -663,8 +662,7 @@ const denoise2x2ShaderCode = /* glsl */`
     // --- Step3: 色多数決（5x5 内のカウントをもとに多数色を決定） ---
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
-    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
-    for (var i: u32 = 1u; i < colorNum+1; i++) {
+    for (var i: u32 = 1u; i < 9u; i++) {
       if (counts[i] > maxCount) {
         maxCount = counts[i];
         maxIdx = i;
@@ -757,8 +755,7 @@ const denoise3x3ShaderCode = /* glsl */`
     // --- Step3: 5x5 多数決 ---
     var maxCount = counts[0];
     var maxIdx: u32 = 0u;
-    let colorNum = (uniforms.whiteCol >> 24u) & 0xFFu;
-    for (var i: u32 = 1u; i < colorNum+1; i++) {
+    for (var i: u32 = 1u; i < 9u; i++) {
       if (counts[i] > maxCount) {
         maxCount = counts[i];
         maxIdx = i;
