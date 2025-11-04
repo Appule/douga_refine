@@ -25,24 +25,6 @@
   // current pixel color under cursor (RGBA 0-255)
   let currentPixelColor = { r: 0, g: 0, b: 0, a: 0 };
 
-  // ディレクトリ選択によるアップロード
-  const uploadByDirHandle = async function (dirHandle) {
-    // 選択フォルダ内のファイルを収集
-    const files = [];
-    for await (const entry of dirHandle.values()) {
-      if (entry.kind === 'file') {
-        try {
-          const file = await entry.getFile();
-          files.push(file);
-        } catch (err) {
-          console.warn('Failed to get file from handle:', entry.name, err);
-        }
-      }
-    }
-
-    imageUploaded(files);
-  }
-
   const init = function () {
     // dragoverイベントでdrop許可
     dropZone.addEventListener("dragover", (e) => {
@@ -59,7 +41,7 @@
       e.preventDefault();
       dropZone.classList.remove("dragover");
       // ex) A_0001~0088 => [{ file, num:0001~0088, num:1~88, basename:A }, ...]
-      imageUploaded(Array.from(e.dataTransfer.files));
+      window.Core.loadImagesFromDrop(Array.from(e.dataTransfer.files));
     });
 
     canvas.style.transformOrigin = "0 0"; // 左上基準
@@ -158,113 +140,58 @@
 
   }
 
-  // 画像アップロード時
-  const imageUploaded = async function (files) {
-    try {
-      showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
+  /**
+   * 最初の画像データに基づいてCanvasのサイズを初期化・設定します。
+   * @param {ImageData} firstImageData - フレームシーケンスの最初の画像データ。
+   */
+  const setupCanvas = function (firstImageData) {
+    if (firstImageData) {
+      // キャンバスサイズを最初の画像サイズに設定
+      const { width, height } = firstImageData;
+      [canvas, drawCanvas, overlayCanvas, offscreenCanvas].forEach(c => {
+        c.width = width;
+        c.height = height;
+        if (c !== offscreenCanvas) {
+          c.style.width = width + 'px';
+          c.style.height = height + 'px';
+        }
+      });
 
-      // fileInfos を dirHandle から初期化
-      const fileInfos = files
-        .filter(f => {
-          return f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif");
-        })
-        .map(f => {
-          const baseNameOnly = f.name.replace(/\.[^/.]+$/, "");
-          const lastUnderscore = baseNameOnly.lastIndexOf("_");
-          const basename = lastUnderscore !== -1
-            ? baseNameOnly.substring(0, lastUnderscore)
-            : baseNameOnly;
+      resetCanvasOffset();
 
-          const m = f.name.match(/(\d{4})/);
-          const padded = m ? m[1] : "";
-          const num = m ? parseInt(m[1], 10) : Infinity;
+      dctx.save();
+      dctx.fillStyle = '#FFFFFF';
+      dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+      dctx.restore();
 
-          return { file: f, padded, num, basename };
-        })
-        .sort((a, b) => a.num - b.num);
-
-      if (fileInfos.length === 0) {
-        showStatus('選択されたフォルダに画像が見つかりませんでした。', 'error', 3000);
-        return;
-      }
-
-      // drop と同じ処理を実行
-      window.FloatPanel.updateFilenameInput(fileInfos[0].basename);
-      window.Core.initImageDatas(fileInfos);
-      window.FrameManager.init(fileInfos);
-      await initCanvas(fileInfos);
-      window.Core.prepareAndShowImage();
-    } catch (err) {
-      // ユーザーがキャンセルした場合や API が使えない場合など
-      console.error('Directory load cancelled or failed:', err);
+      // 最初の文言を削除
+      const h1 = editorContent.querySelector('h1');
+      const p = editorContent.querySelector('p');
+      if (h1) h1.remove();
+      if (p) p.remove();
+      editorContent.style.alignItems = 'initial';
+      editorContent.style.justifyContent = 'initial';
     }
   }
 
-  // uploadedImageの生成
-  const initCanvas = async function (fileInfos) {
-    // 各ファイルの処理
-    for (let index = 0; index < fileInfos.length; index++) {
-      const info = fileInfos[index];
-      const ext = info.file.name.split('.').pop().toLowerCase();
-      // Obtain ImageData from file (TGA/TIFF/other) then draw to canvas & cache
-      try {
-        let imgData;
-        if (ext === 'tga') {
-          imgData = await window.ImageLoader.loadTGA(info.file);
-        } else if (ext === 'tif' || ext === 'tiff') {
-          imgData = await window.ImageLoader.loadTIFF(info.file);
-        } else {
-          imgData = await window.ImageLoader.loadIMG(info.file);
-        }
+  const resetCanvas = function () {
+    // 既存のCanvasをクリアし、初期メッセージを再表示
+    [ctx, dctx, octx, osctx].forEach(c => c.clearRect(0, 0, c.canvas.width, c.canvas.height));
+    canvas.width = canvas.height = 0;
+    canvas.style.width = '0px';
+    canvas.style.height = '0px';
+    // ... 他のCanvasも同様にリセット ...
 
-        // イメージデータを保存
-        window.Core.setUploadedImage(imgData, index);
-
-        if (index === 0) {
-          // キャンバスサイズを最初の画像サイズに設定
-          canvas.width = imgData.width;
-          canvas.height = imgData.height;
-          canvas.style.width = canvas.width + 'px';
-          canvas.style.height = canvas.height + 'px';
-          offscreenCanvas.width = canvas.width;
-          offscreenCanvas.height = canvas.height;
-          drawCanvas.width = canvas.width;
-          drawCanvas.height = canvas.height;
-          drawCanvas.style.width = canvas.width + 'px';
-          drawCanvas.style.height = canvas.height + 'px';
-          overlayCanvas.width = canvas.width;
-          overlayCanvas.height = canvas.height;
-          overlayCanvas.style.width = canvas.width + 'px';
-          overlayCanvas.style.height = canvas.height + 'px';
-
-          resetCanvasOffset();
-
-          dctx.save();
-          dctx.fillStyle = '#FFFFFF';
-          dctx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
-          dctx.restore();
-        }
-
-        if (index === fileInfos.length - 1) {
-          showStatus(`${ext.toUpperCase()}画像が読み込まれました。`, 'success', 3000);
-        }
-
-        showStatus(`<div class="loading"><div class="spinner"></div>画像を読み込み中...${(index / fileInfos.length * 100).toFixed(0)}%</div>`, 'info');
-
-      } catch (err) {
-        console.error('Error loading image file:', err);
-        showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
-      }
-    }
-
-    // 最初の文言を削除
-    const h1 = editorContent.querySelector('h1');
-    const p = editorContent.querySelector('p');
-    if (h1) h1.remove();
-    if (p) p.remove();
-    editorContent.style.alignItems = 'initial';
-    editorContent.style.justifyContent = 'initial';
-    showStatus('アップロードが完了しました。', 'success', 3000);
+    editorContent.innerHTML = `
+      <h1>編集画面</h1>
+      <p>「カットフォルダ」から作業フォルダを選択してください</p>
+    `;
+    editorContent.appendChild(canvas);
+    editorContent.appendChild(drawCanvas);
+    editorContent.appendChild(overlayCanvas);
+    editorContent.appendChild(offscreenCanvas);
+    editorContent.style.alignItems = 'center';
+    editorContent.style.justifyContent = 'center';
   }
 
   function findClosestZoomIndex(z) {
@@ -471,7 +398,8 @@
     drawImg,
     hideDrawCanvas,
     showDrawCanvas,
-    uploadByDirHandle,
+    setupCanvas,
+    resetCanvas,
     changeZoomStep,
     setFillAlphaFromKey,
   }

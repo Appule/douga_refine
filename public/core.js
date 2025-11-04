@@ -223,6 +223,11 @@
     });
   });
 
+  const loadImagesFromDrop = async function (files) {
+    const fileInfos = createFileInfos(files);
+    await loadAllImages(fileInfos);
+  }
+
   // 画像データ setter/getter
   const initImageDatas = function (fis) {
     uploadedImages = new Array(fis.length);
@@ -543,41 +548,114 @@
       dirHandleCell = null;
     }
 
-    window.CanvasEditor.uploadByDirHandle(dirHandleTrace);
-
-    // 参照画像フォルダの読み込み
-    if (refDirEntry) {
-      loadReferenceImages(refDirEntry.handle);
-    } else {
-      // 参照画像がない場合はクリア
-      referenceImages.fill(null);
-    }
+    // 画像読み込み処理を統合
+    await loadAllImages(dirHandleTrace, refDirEntry?.handle);
   }
 
-  async function loadReferenceImages(dirHandle) {
-    showStatus('参照画像を読み込んでいます...', 'info');
+  /**
+   * Fileオブジェクトの配列からfileInfosを生成する
+   * @param {File[]} files - Fileオブジェクトの配列
+   * @returns {object[]} - fileInfoオブジェクトの配列
+   */
+  function createFileInfos(files) {
+    return files
+      .filter(f => f.type.startsWith("image/") || f.name.endsWith(".tga") || f.name.endsWith(".tif"))
+      .map(f => {
+        const baseNameOnly = f.name.replace(/\.[^/.]+$/, "");
+        const lastUnderscore = baseNameOnly.lastIndexOf("_");
+        const basename = lastUnderscore !== -1 ? baseNameOnly.substring(0, lastUnderscore) : baseNameOnly;
+        const m = f.name.match(/(\d{4})/);
+        const padded = m ? m[1] : "";
+        const num = m ? parseInt(m[1], 10) : Infinity;
+        return { file: f, padded, num, basename };
+      })
+      .sort((a, b) => a.num - b.num);
+  }
+
+  /**
+   * 参照画像と参照（コピー）画像の両方を読み込み、状態を更新する
+   * @param {FileSystemDirectoryHandle | object[]} source - 参照画像フォルダのハンドル or fileInfo配列
+   * @param {FileSystemDirectoryHandle} [refSource=null] - 参照(コピー)画像フォルダのハンドル
+   */
+  async function loadAllImages(source, refSource = null) {
+    showStatus('<div class="loading"><div class="spinner"></div>画像を読み込み中...</div>', 'info');
     try {
-      debugger
-      for await (const entry of dirHandle.values()) {
-        if (entry.kind !== 'file') continue;
+      let localFileInfos;
 
-        const file = await entry.getFile();
-        const m = file.name.match(/(\d{4})/);
-        if (!m) continue;
+      // sourceがDirectoryHandleかfileInfo配列かで処理を分岐
+      if (source.kind === 'directory') {
+        const files = [];
+        for await (const entry of source.values()) {
+          if (entry.kind === 'file') files.push(await entry.getFile());
+        }
+        localFileInfos = createFileInfos(files);
+      } else {
+        localFileInfos = source;
+      }
 
-        const num = parseInt(m[1], 10);
-        const targetIndex = fileInfos.findIndex(info => info.num === num);
+      if (localFileInfos.length === 0) {
+        showStatus('選択されたフォルダに画像が見つかりませんでした。', 'error', 3000);
+        window.CanvasEditor.resetCanvas();
+        return;
+      }
 
-        if (targetIndex !== -1) {
-          const ext = file.name.split('.').pop().toLowerCase();
-          const imgData = await (ext === 'tga' ? window.ImageLoader.loadTGA(file) : (ext === 'tif' || ext === 'tiff' ? window.ImageLoader.loadTIFF(file) : window.ImageLoader.loadIMG(file)));
-          setReferenceImage(imgData, targetIndex);
+      // 状態とUIを初期化
+      initImageDatas(localFileInfos);
+      window.FloatPanel.updateFilenameInput(localFileInfos[0].basename);
+      window.FrameManager.init(localFileInfos);
+
+      // 参照（コピー）画像ファイルのマッピングを作成
+      const refFileMap = new Map();
+      if (refSource) {
+        for await (const entry of refSource.values()) {
+          if (entry.kind !== 'file') continue;
+          const file = await entry.getFile();
+          const m = file.name.match(/(\d{4})/);
+          if (m) {
+            const num = parseInt(m[1], 10);
+            refFileMap.set(num, file);
+          }
         }
       }
-      showStatus('参照画像の読み込みが完了しました。', 'success', 3000);
+
+      // 全画像の読み込み
+      for (let i = 0; i < localFileInfos.length; i++) {
+        const info = localFileInfos[i];
+        const ext = info.file.name.split('.').pop().toLowerCase();
+
+        // uploadedImageの読み込み
+        try {
+          const imgData = await (ext === 'tga' ? window.ImageLoader.loadTGA(info.file) : (ext === 'tif' || ext === 'tiff' ? window.ImageLoader.loadTIFF(info.file) : window.ImageLoader.loadIMG(info.file)));
+          setUploadedImage(imgData, i);
+
+          // 最初の画像でCanvasをセットアップ
+          if (i === 0) {
+            window.CanvasEditor.setupCanvas(imgData);
+          }
+
+          // referenceImageの読み込み
+          const refFile = refFileMap.get(info.num);
+          if (refFile) {
+            const refExt = refFile.name.split('.').pop().toLowerCase();
+            const refImgData = await (refExt === 'tga' ? window.ImageLoader.loadTGA(refFile) : (refExt === 'tif' || refExt === 'tiff' ? window.ImageLoader.loadTIFF(refFile) : window.ImageLoader.loadIMG(refFile)));
+            setReferenceImage(refImgData, i);
+          }
+
+        } catch (err) {
+          console.error('Error loading image file:', err);
+          showStatus(`画像の読み込みに失敗しました: ${info.file.name}`, 'error', 3000);
+        }
+
+        showStatus(`<div class="loading"><div class="spinner"></div>画像を読み込み中...${((i + 1) / localFileInfos.length * 100).toFixed(0)}%</div>`, 'info');
+      }
+
+      // 最初の画像を表示
+      prepareAndShowImage();
+      showStatus('画像の読み込みが完了しました。', 'success', 3000);
+
     } catch (err) {
-      console.error('参照画像の読み込みに失敗しました:', err);
-      showStatus('参照画像の読み込みに失敗しました。', 'error', 3000);
+      console.error('画像フォルダの読み込みに失敗しました:', err);
+      showStatus('画像フォルダの読み込みに失敗しました。', 'error', 3000);
     }
   }
 
@@ -614,6 +692,7 @@
   });
 
   window.Core = {
+    loadImagesFromDrop,
     // 画像データ
     initImageDatas,
     setUploadedImage,
