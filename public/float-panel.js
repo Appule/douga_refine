@@ -89,8 +89,8 @@
     const setShowOutCallBack = function (func) { showOutCallBack = func; }
     const setShowRefCallBack = function (func) { showRefCallBack = func; }
 
-    //// 出力の調整
-    gWin.addElement(createLabel('出力の調整'));
+    //// 出力の詳細設定
+    gWin.addElement(createLabel('出力の詳細設定'));
     sharpnessBtn = createToggle('シャープネス', true, () => window.ConfigEditor.updateCurrentCfg(), 'rgba(255, 104, 104, 1)', 'rgba(114, 114, 114, 1)');
     denoiseLevelList = createDropdown('デノイズ強度', ['3', '2', '1', '0'], () => window.ConfigEditor.updateCurrentCfg(), 'rgba(82, 82, 82, 1)');
     cursorModeList = createDropdown('カーソル', [{ text: 'デフォルト', value: 'camera' }, { text: '閾値上げ', value: 'highTh' }, { text: '閾値下げ', value: 'lowTh' }],

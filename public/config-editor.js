@@ -451,6 +451,47 @@
     return JSON.stringify(copy);
   }
 
+  const getColorBlockInfo = function (index) {
+    if (currentConfig.colorBlocks && currentConfig.colorBlocks[index]) {
+      const block = currentConfig.colorBlocks[index];
+      return {
+        labelColor: block.labelColor,
+      };
+    }
+    return null;
+  }
+
+  const getColorBlockCount = function () {
+    return cfgElm.colorBlocks.length;
+  }
+
+  const highlightColorBlock = function (index) {
+    const container = document.querySelector('.color-content');
+    const allBlocks = container.querySelectorAll('.color-block');
+    allBlocks.forEach((block, i) => {
+      if (i === index) {
+        block.classList.add('highlighted');
+      } else {
+        block.classList.remove('highlighted');
+      }
+    });
+  }
+
+  const updateThresholdSlider = function (index, delta) {
+    if (index < 0 || index >= cfgElm.colorBlocks.length) return;
+
+    const block = cfgElm.colorBlocks[index];
+    const slider = block.sliders.threshold;
+    const number = block.numbers.threshold;
+
+    let newValue = Number(slider.value) + delta;
+    newValue = Math.max(Number(slider.min), Math.min(Number(slider.max), newValue));
+
+    slider.value = newValue;
+    number.value = newValue;
+    updateCurrentCfg();
+  }
+
   //// 共有オブジェクト
   window.ConfigEditor = {
     init,
@@ -459,6 +500,10 @@
     debugMode,
     setClearConfigBtnCallBack,
     setApplyConfigCallback,
+    getColorBlockInfo,
+    getColorBlockCount,
+    highlightColorBlock,
+    updateThresholdSlider,
   }
 
 })();

@@ -203,6 +203,12 @@ html {
   justify-content: center;
 }
 
+.color-block.highlighted {
+  outline: 3px solid #007bff;
+  outline-offset: -2px;
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+}
+
 .picker-stack {
   display: flex;
   flex-direction: column;
@@ -478,8 +484,8 @@ button.accent {
 /* パネル表示切替ボタン */
 #togglePanelsBtn {
   position: fixed;
-  bottom: 15px;
-  right: 15px;
+  bottom: 40px;
+  right: 40px;
   z-index: 2000;
   /* Make sure it's on top of other elements */
   width: 50px;

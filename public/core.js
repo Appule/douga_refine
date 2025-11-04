@@ -11,6 +11,7 @@
   let showMode = 'processed'; // 現在の描画モード enableSharpness: true, denoiseLevel: 3, enableDebug: false
   let cursorMode = 'camera'; // 現在のカーソルモード
   let frameIndex = 0; // 現在のフレーム番号
+  let selectedThresholdIndex = 0; // config-editorで選択中のスライダーindex
   // コンフィグ
   let globalConfig = {}; // グローバルコンフィグ
   let frameConfigs = []; // フレームコンフィグ
@@ -30,6 +31,7 @@
   let traceDirEntries = [];
   let cellDirEntries = [];
 
+  let panelsVisible = true;
   // window-global
   let fileName = '';
   let fileExt = 'tga';
@@ -201,7 +203,6 @@
     loadPanelSizes(); // ページ読み込み時にサイズを復元
 
     const togglePanelsBtn = document.getElementById('togglePanelsBtn');
-    let panelsVisible = true;
     togglePanelsBtn.addEventListener('click', () => {
       panelsVisible = !panelsVisible;
       if (panelsVisible) {
@@ -631,6 +632,7 @@
           // 最初の画像でCanvasをセットアップ
           if (i === 0) {
             window.CanvasEditor.setupCanvas(imgData);
+            window.ConfigEditor.highlightColorBlock(selectedThresholdIndex);
           }
 
           // referenceImageの読み込み
@@ -731,13 +733,25 @@
 
     const key = e.key;
     const isAlt = e.altKey;
+    const isShift = e.shiftKey;
 
     // 修飾キーが押されている場合は無視 (Altを除く)
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    // ただし、Shiftキーは一部のショートカットで使用するため、ここではShift単体は除外しない
+    if (e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    // Shiftキーが押されている場合の特別処理
+    if (isShift) {
       // ただし、Frame-manager.jsの 'Shift+<' or 'Shift+>' は '<' or '>' として扱われるため、ここでは無視しない
       if (!(key === '<' || key === '>')) {
-        return;
+        // 他のShiftキー組み合わせショートカットがなければ、ここでreturnしても良い
       }
+    }
+
+    // Shiftキーが押されていない場合
+    if (!isShift && (key === '<' || key === '>')) {
+      // '<' or '>' 単体の場合の処理（FrameManagerで処理される）
     }
 
     // ズーム
@@ -765,12 +779,12 @@
     }
     if (key.toLowerCase() === 'w') {
       e.preventDefault();
-      const currentMode = getShowMode();
-      if (currentMode === 'processed') {
-        setShowMode('reference');
-      } else {
-        setShowMode('processed');
-      }
+      setShowMode('reference');
+      return;
+    }
+    if (key.toLowerCase() === 'e') {
+      e.preventDefault();
+      setShowMode('processed');
       return;
     }
 
@@ -795,6 +809,36 @@
         return;
       }
     }
+
+    // Thresholdスライダーのショートカット
+    const keyLower = key.toLowerCase();
+    if (keyLower === 'a' || keyLower === 'd') {
+      e.preventDefault();
+      const maxIndex = window.ConfigEditor.getColorBlockCount() - 1;
+      if (keyLower === 'a') {
+        selectedThresholdIndex = Math.max(0, selectedThresholdIndex - 1);
+      } else { // 'd'
+        selectedThresholdIndex = Math.min(maxIndex, selectedThresholdIndex + 1);
+      }
+      window.ConfigEditor.highlightColorBlock(selectedThresholdIndex);
+
+      if (!panelsVisible) {
+        const info = window.ConfigEditor.getColorBlockInfo(selectedThresholdIndex);
+        if (info) {
+          showStatus(`<span style="color: ${info.labelColor}; font-weight: bold;">選択中: Color ${selectedThresholdIndex + 1}</span>`, 'info', 1500);
+        }
+      }
+      return;
+    }
+
+    if (keyLower === 'r' || keyLower === 'f') {
+      e.preventDefault();
+      const delta = (keyLower === 'r') ? 1 : -1;
+      const amount = isShift ? delta * 5 : delta;
+      window.ConfigEditor.updateThresholdSlider(selectedThresholdIndex, amount);
+      return;
+    }
+
 
     // パネル表示切替
     if (key === '/') {
