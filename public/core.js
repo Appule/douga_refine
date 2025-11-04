@@ -755,7 +755,22 @@
     // 表示モード切替
     if (key.toLowerCase() === keyConfig.toggleShowMode) {
       e.preventDefault();
-      setShowMode((getShowMode() === 'processed') ? 'original' : 'processed');
+      const currentMode = getShowMode();
+      if (currentMode === 'processed') {
+        setShowMode('original');
+      } else {
+        setShowMode('processed');
+      }
+      return;
+    }
+    if (key.toLowerCase() === 'w') {
+      e.preventDefault();
+      const currentMode = getShowMode();
+      if (currentMode === 'processed') {
+        setShowMode('reference');
+      } else {
+        setShowMode('processed');
+      }
       return;
     }
 
@@ -779,6 +794,13 @@
         window.CanvasEditor.setFillAlphaFromKey(key);
         return;
       }
+    }
+
+    // パネル表示切替
+    if (key === '/') {
+      e.preventDefault();
+      document.getElementById('togglePanelsBtn')?.click();
+      return;
     }
   });
 
