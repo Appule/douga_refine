@@ -11,6 +11,14 @@ class FloatWindow {
     this.minWidth = 100;
     this.minHeight = 100;
 
+    // ローカルストレージから位置とサイズを復元
+    const savedState = this.loadState(id);
+    if (savedState) {
+      windowPosition = { x: savedState.x * window.innerWidth, y: savedState.y * window.innerHeight };
+      windowSize = { width: savedState.width * window.innerWidth, height: savedState.height * window.innerHeight };
+    }
+
+
     this.el = document.getElementById(id);
 
     this.container = document.createElement('div');
@@ -49,6 +57,7 @@ class FloatWindow {
       this.pixel.width = parseInt(this.el.style.width.replace('px', ''));
       this.pixel.height = parseInt(this.el.style.height.replace('px', ''));
       this._updateRelativeFromPixel();
+      this.saveState();
     });
 
     // Draggable
@@ -104,11 +113,27 @@ class FloatWindow {
     window.addEventListener('resize', this._onWindowResize);
 
     this.show();
+
+    // ページを離れるときに状態を保存
+    window.addEventListener('beforeunload', () => this.saveState());
+  }
+
+  saveState() {
+    const state = this.relative;
+    localStorage.setItem(`floatWindowState_${this.el.id}`, JSON.stringify(state));
+  }
+
+  loadState(id) {
+    const savedState = localStorage.getItem(`floatWindowState_${id}`);
+    if (savedState) {
+      return JSON.parse(savedState);
+    }
+    return null;
   }
 
   _applyPixelSizeAndPosition(widthPx, heightPx, xPx, yPx) {
-    this.el.style.width = `${widthPx - 22}px`;
-    this.el.style.height = `${heightPx - 22}px`;
+    this.el.style.width = `${widthPx}px`;
+    this.el.style.height = `${heightPx}px`;
     this.el.style.transform = `translate(${xPx}px, ${yPx}px)`;
     this.el.setAttribute('data-x', xPx);
     this.el.setAttribute('data-y', yPx);
